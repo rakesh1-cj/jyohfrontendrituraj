@@ -1,0 +1,4852 @@
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import "../app/sale-deed/saledeed.css";
+import { FormWorkflowProvider, useFormWorkflow } from './FormWorkflow/FormWorkflowProvider';
+import FormWorkflow from './FormWorkflow/FormWorkflow';
+import LanguageSelectorDropdown from './LanguageSelectorDropdown';
+import ClientOnly from './ClientOnly';
+import { useTranslation } from 'react-i18next';
+import CameraCapture from './CameraCapture';
+import LocationSelector from './LocationSelector';
+import HindiInput from './ui/HindiInput';
+import HindiTextarea from './ui/HindiTextarea';
+import LanguageToggle from './ui/LanguageToggle';
+
+// Constants
+const STAMP_DUTY_RATE = 0.07;
+const REGISTRATION_CHARGE_RATE = 0.01;
+const PARKING_CHARGE_RATE = 0.04;
+const NALKOOP_RATE = 20000;
+const BOREWELL_RATE = 15000;
+const TREE_RATES = {
+  'mango': 15000,
+  'neem': 10000,
+  'eucalyptus': 5000,
+  'guava': 8000
+};
+
+const CONSTRUCTION_RATES = {
+  'residential': {
+    '1st_class': 16000,
+    '2nd_class': 14000,
+    '3rd_class': 12000,
+    '4th_class': 10000
+  },
+  'commercial': {
+    'single-shop': 18000,
+    'multiple-shops': 20000,
+    'mall': 22000
+  }
+};
+
+const ROOM_TYPES = ['Bedroom', 'Kitchen', 'Bathroom', 'Drawing Room', 'Dining Room', 'Hall', 'Open Area', 'Balcony', 'Washing Room', 'Servant Room'];
+
+// Utility functions
+const convertToSqMeters = (value, unit) => {
+  if (!value) return 0;
+  switch (unit) {
+    case 'sq_yards':
+      return value * 0.836127;
+    case 'sq_feet':
+      return value * 0.092903;
+    case 'acre':
+      return value * 4046.86;
+    case 'hectare':
+      return value * 10000;
+    case 'sq_meters':
+    default:
+      return value;
+  }
+};
+
+const convertToMeters = (value, unit) => {
+  if (!value) return 0;
+  switch (unit) {
+    case 'feet':
+      return value * 0.3048;
+    case 'meters':
+    default:
+      return value;
+  }
+};
+
+const SaleDeedFormContent = () => {
+  const { goToPreview, formData: workflowFormData, hindiInputEnabled, toggleHindiInput } = useFormWorkflow();
+  const { t } = useTranslation();
+
+  // Form state - start with empty values, don't load from workflow
+  const [formData, setFormData] = useState({
+    documentType: '',
+    propertyType: '',
+    plotType: '',
+    salePrice: '',
+    circleRateAmount: '',
+    areaInputType: 'total',
+    area: '',
+    areaUnit: 'sq_meters',
+    propertyLength: '',
+    propertyWidth: '',
+    dimUnit: 'meters',
+    buildupType: 'single-shop',
+    numShops: 1,
+    numFloorsMall: 1,
+    numFloorsMulti: 1,
+    superAreaMulti: '',
+    coveredAreaMulti: '',
+    nalkoopCount: 0,
+    borewellCount: 0,
+    state: '',
+    district: '',
+    tehsil: '',
+    village: '',
+    khasraNo: '',
+    plotNo: '',
+    colonyName: '',
+    wardNo: '',
+    streetNo: '',
+    roadSize: '',
+    roadUnit: 'meter',
+    doubleSideRoad: false,
+    directionNorth: '',
+    directionEast: '',
+    directionSouth: '',
+    directionWest: '',
+    coveredParkingCount: 0,
+    openParkingCount: 0,
+    deductionType: '',
+    otherDeductionPercent: '',
+    buyerGender: '',
+    otherDeduction: ''
+  });
+
+  // Dynamic arrays - start empty
+  const [sellers, setSellers] = useState([{
+    name: '',
+    relation: '',
+    address: '',
+    mobile: '',
+    idType: '',
+    idNo: '',
+    panCardNo: '',
+    panCard: null,
+    photo: null,
+    id: null,
+    signature: null
+  }]);
+
+  const [buyers, setBuyers] = useState([{
+    name: '',
+    relation: '',
+    address: '',
+    mobile: '',
+    idType: '',
+    idNo: '',
+    panCardNo: '',
+    panCard: null,
+    photo: null,
+    id: null,
+    signature: null
+  }]);
+
+  const [witnesses, setWitnesses] = useState([
+    { name: '', relation: '', address: '', mobile: '', age: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null },
+    { name: '', relation: '', address: '', mobile: '', age: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null }
+  ]);
+
+  // Preview images state for file uploads
+  const [previewImages, setPreviewImages] = useState({});
+
+  // Property photos state
+  const [propertyPhotos, setPropertyPhotos] = useState([]);
+  const [livePhotos, setLivePhotos] = useState([]);
+
+  const [rooms, setRooms] = useState([]);
+  const [trees, setTrees] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [mallFloors, setMallFloors] = useState([]);
+  const [facilities, setFacilities] = useState([]);
+  const [dynamicFacilities, setDynamicFacilities] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // UI state
+  const [showCalculations, setShowCalculations] = useState(false);
+  const [calculationResults, setCalculationResults] = useState(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Staging Logic
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 5;
+
+  const validateStep = (step) => {
+    switch (step) {
+      case 1: // Property Information
+        if (!formData.documentType) { alert(t('saleDeed.alerts.docTypeRequired')); return false; }
+        if (!formData.propertyType) { alert(t('saleDeed.alerts.propertyTypeRequired')); return false; }
+        if (!formData.plotType) { alert(t('saleDeed.alerts.plotTypeRequired')); return false; }
+        if (!formData.salePrice) { alert(t('saleDeed.alerts.salePriceRequired')); return false; }
+        if (!formData.circleRateAmount) { alert(t('saleDeed.alerts.circleRateRequired')); return false; }
+        if (formData.areaInputType === 'total' && !formData.area) { alert(t('saleDeed.alerts.areaRequired')); return false; }
+        return true;
+      case 2: // Seller
+        if (sellers.some(s => !s.name)) { alert(t('saleDeed.alerts.sellerNameRequired')); return false; }
+        return true;
+      case 3: // Buyer
+        if (buyers.some(b => !b.name)) { alert(t('saleDeed.alerts.buyerNameRequired')); return false; }
+        return true;
+      case 4: // Witness
+        if (witnesses.some(w => !w.name)) { alert(t('saleDeed.alerts.witnessNameRequired')); return false; }
+        return true;
+      case 5: // Property Desc
+        if (!formData.state) { alert(t('saleDeed.alerts.stateRequired')); return false; }
+        if (!formData.district) { alert(t('saleDeed.alerts.districtRequired')); return false; }
+        if (!formData.tehsil) { alert(t('saleDeed.alerts.tehsilRequired')); return false; }
+        if (!formData.village) { alert(t('saleDeed.alerts.villageRequired')); return false; }
+        return true;
+      default: return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < totalSteps) {
+        setCurrentStep(curr => curr + 1);
+        window.scrollTo(0, 0);
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(curr => curr - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  // Refs for file inputs
+  const fileInputRef = useRef(null);
+
+  // Handle form input changes
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Add seller
+  const addSeller = () => {
+    setSellers(prev => [...prev, {
+      name: '',
+      relation: '',
+      address: '',
+      mobile: '',
+      idType: '',
+      idNo: '',
+      panCardNo: '',
+      panCard: null,
+      photo: null,
+      id: null,
+      signature: null
+    }]);
+  };
+
+  // Remove seller
+  const removeSeller = (index) => {
+    if (sellers.length > 1) {
+      setSellers(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Update seller
+  const updateSeller = (index, field, value) => {
+    setSellers(prev => prev.map((seller, i) =>
+      i === index ? { ...seller, [field]: value } : seller
+    ));
+  };
+
+  // Add buyer
+  const addBuyer = () => {
+    setBuyers(prev => [...prev, {
+      name: '',
+      relation: '',
+      address: '',
+      mobile: '',
+      idType: '',
+      idNo: '',
+      panCardNo: '',
+      panCard: null,
+      photo: null,
+      id: null,
+      signature: null
+    }]);
+  };
+
+  // Remove buyer
+  const removeBuyer = (index) => {
+    if (buyers.length > 1) {
+      setBuyers(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Update buyer
+  const updateBuyer = (index, field, value) => {
+    setBuyers(prev => prev.map((buyer, i) =>
+      i === index ? { ...buyer, [field]: value } : buyer
+    ));
+  };
+
+  // Add room
+  const addRoom = () => {
+    setRooms(prev => [...prev, {
+      type: 'bedroom',
+      length: '',
+      width: ''
+    }]);
+  };
+
+  // Remove room
+  const removeRoom = (index) => {
+    setRooms(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Update room
+  const updateRoom = (index, field, value) => {
+    setRooms(prev => prev.map((room, i) =>
+      i === index ? { ...room, [field]: value } : room
+    ));
+  };
+
+  // Add tree
+  const addTree = () => {
+    setTrees(prev => [...prev, {
+      type: 'mango',
+      count: 1
+    }]);
+  };
+
+  // Remove tree
+  const removeTree = (index) => {
+    setTrees(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Update tree
+  const updateTree = (index, field, value) => {
+    setTrees(prev => prev.map((tree, i) =>
+      i === index ? { ...tree, [field]: value } : tree
+    ));
+  };
+
+  // File upload functions
+  const handleFileUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const newFiles = files.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }));
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === fileId);
+      if (fileToRemove && fileToRemove.preview) {
+        URL.revokeObjectURL(fileToRemove.preview);
+      }
+      return prev.filter(f => f.id !== fileId);
+    });
+  };
+
+  // File upload handlers for sellers, buyers, and witnesses
+  const handleFileChange = (type, index, field, file) => {
+    if (!file) return;
+
+    const previewKey = `${type}_${index}_${field}`;
+    let previewUrl = null;
+
+    if (file.type.startsWith('image/')) {
+      previewUrl = URL.createObjectURL(file);
+      setPreviewImages(prev => ({
+        ...prev,
+        [previewKey]: previewUrl
+      }));
+    }
+
+    if (type === 'seller') {
+      setSellers(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: file } : item
+      ));
+    } else if (type === 'buyer') {
+      setBuyers(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: file } : item
+      ));
+    } else if (type === 'witness') {
+      setWitnesses(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: file } : item
+      ));
+    }
+  };
+
+  // Remove file preview and clear file
+  const handleRemoveFile = (type, index, field) => {
+    const previewKey = `${type}_${index}_${field}`;
+    if (previewImages[previewKey]) {
+      URL.revokeObjectURL(previewImages[previewKey]);
+      setPreviewImages(prev => {
+        const newPrev = { ...prev };
+        delete newPrev[previewKey];
+        return newPrev;
+      });
+    }
+
+    if (type === 'seller') {
+      setSellers(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: null } : item
+      ));
+    } else if (type === 'buyer') {
+      setBuyers(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: null } : item
+      ));
+    } else if (type === 'witness') {
+      setWitnesses(prev => prev.map((item, i) =>
+        i === index ? { ...item, [field]: null } : item
+      ));
+    }
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = (type, index, field, file, imageSrc) => {
+    handleFileChange(type, index, field, file);
+    if (imageSrc) {
+      setPreviewImages(prev => ({
+        ...prev,
+        [`${type}_${index}_${field}`]: imageSrc
+      }));
+    }
+  };
+
+  // Handle property photo upload
+  const handlePropertyPhotoUpload = (file, isLivePhoto = false) => {
+    if (!file) return;
+
+    const photoId = Date.now() + Math.random();
+    const previewUrl = URL.createObjectURL(file);
+
+    const photoObj = {
+      id: photoId,
+      file,
+      preview: previewUrl,
+      name: file.name,
+      size: file.size,
+      type: file.type
+    };
+
+    if (isLivePhoto) {
+      setLivePhotos(prev => [...prev, photoObj]);
+    } else {
+      setPropertyPhotos(prev => [...prev, photoObj]);
+    }
+  };
+
+  // Handle property photo removal
+  const handleRemovePropertyPhoto = (photoId, isLivePhoto = false) => {
+    if (isLivePhoto) {
+      setLivePhotos(prev => {
+        const photo = prev.find(p => p.id === photoId);
+        if (photo && photo.preview) {
+          URL.revokeObjectURL(photo.preview);
+        }
+        return prev.filter(p => p.id !== photoId);
+      });
+    } else {
+      setPropertyPhotos(prev => {
+        const photo = prev.find(p => p.id === photoId);
+        if (photo && photo.preview) {
+          URL.revokeObjectURL(photo.preview);
+        }
+        return prev.filter(p => p.id !== photoId);
+      });
+    }
+  };
+
+  // Local storage functions
+  const saveDraft = () => {
+    try {
+      const draftData = {
+        formData,
+        sellers,
+        buyers,
+        witnesses,
+        rooms,
+        trees,
+        shops,
+        mallFloors,
+        facilities,
+        dynamicFacilities,
+        propertyPhotos,
+        livePhotos,
+        calculations: calculationResults,
+        timestamp: new Date().toISOString()
+      };
+
+      localStorage.setItem('sale_deed_draft_v1', JSON.stringify(draftData));
+      // Silent save - no alert
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      // Silent error - no alert
+    }
+  };
+
+  const loadDraft = () => {
+    try {
+      const savedDraft = localStorage.getItem('sale_deed_draft_v1');
+      if (!savedDraft) {
+        // No saved draft - silently continue
+        return;
+      }
+
+      const draftData = JSON.parse(savedDraft);
+
+      setFormData(draftData.formData || formData);
+      setSellers(draftData.sellers || sellers);
+      setBuyers(draftData.buyers || buyers);
+      setWitnesses(draftData.witnesses || witnesses);
+      setRooms(draftData.rooms || rooms);
+      setTrees(draftData.trees || trees);
+      setShops(draftData.shops || shops);
+      setMallFloors(draftData.mallFloors || mallFloors);
+      setFacilities(draftData.facilities || facilities);
+      setDynamicFacilities(draftData.dynamicFacilities || dynamicFacilities);
+      setCalculationResults(draftData.calculations || null);
+
+      if (draftData.calculations) {
+        setShowCalculations(true);
+      }
+
+      // Silent load - no alert
+    } catch (error) {
+      console.error('Error loading draft:', error);
+      // Silent error - no alert
+    }
+  };
+
+  // Auto-fill Circle Rate from Admin Settings
+  useEffect(() => {
+    const fetchCircleRate = async () => {
+      const { documentType, propertyType, plotType } = formData;
+
+      // Only fetch if all three fields are selected
+      if (documentType && propertyType && plotType) {
+        try {
+          const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:4001';
+          const query = new URLSearchParams({ documentType, propertyType, plotType }).toString();
+          const response = await fetch(`${API_BASE}/api/circle-rates/check?${query}`);
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.status === 'success' && result.data && result.data.circleRateAmount) {
+              setFormData(prev => ({
+                ...prev,
+                circleRateAmount: result.data.circleRateAmount
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching circle rate:", error);
+        }
+      }
+    };
+
+    fetchCircleRate();
+  }, [formData.documentType, formData.propertyType, formData.plotType]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = () => {
+      if (formData.documentType && formData.propertyType) {
+        saveDraft();
+      }
+    };
+
+    const timeoutId = setTimeout(autoSave, 5000); // Auto-save every 5 seconds
+    return () => clearTimeout(timeoutId);
+  }, [formData, sellers, buyers, witnesses]);
+
+  // Don't auto-load draft on component mount - start fresh
+  // useEffect(() => {
+  //   loadDraft();
+  // }, []);
+
+  // Calculate form values
+  const calculateFormValues = () => {
+    const { propertyType, plotType, salePrice, circleRateAmount, areaInputType, area, areaUnit, propertyLength, propertyWidth, dimUnit } = formData;
+
+    if (!formData.documentType || !propertyType || !salePrice || !circleRateAmount) {
+      alert(t('saleDeed.alerts.requiredFields'));
+      return null;
+    }
+
+    let totalPlotAreaSqMeters = 0;
+    if (propertyType !== 'agriculture') {
+      if (areaInputType === 'total') {
+        totalPlotAreaSqMeters = convertToSqMeters(parseFloat(area) || 0, areaUnit);
+      } else if (areaInputType === 'dimensions') {
+        const lengthMeters = convertToMeters(parseFloat(propertyLength) || 0, dimUnit);
+        const widthMeters = convertToMeters(parseFloat(propertyWidth) || 0, dimUnit);
+        totalPlotAreaSqMeters = lengthMeters * widthMeters;
+      }
+    }
+
+    if (totalPlotAreaSqMeters <= 0 && propertyType !== 'flat' && propertyType !== 'multistory') {
+      alert(t('saleDeed.alerts.invalidArea'));
+      return null;
+    }
+
+    let totalBuildupAreaSqMeters = 0;
+    let buildupValue = 0;
+    let additionCharges = 0;
+
+    // Calculate buildup area and value based on property type and plot type
+    if (propertyType === 'residential') {
+      if (plotType === 'buildup') {
+        const buildupAreaSqFt = totalPlotAreaSqMeters * 10.7639;
+        const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+        buildupValue = buildupAreaSqFt * buildupRate;
+      } else if (plotType === 'flat') {
+        let totalRoomsAreaSqFt = 0;
+        rooms.forEach(room => {
+          const length = parseFloat(room.length) || 0;
+          const width = parseFloat(room.width) || 0;
+          totalRoomsAreaSqFt += length * width;
+        });
+        totalBuildupAreaSqMeters = totalRoomsAreaSqFt * 0.092903;
+        const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+        buildupValue = totalRoomsAreaSqFt * buildupRate;
+      } else if (plotType === 'multistory') {
+        const coveredAreaSqFt = parseFloat(formData.coveredAreaMulti) || 0;
+        totalBuildupAreaSqMeters = coveredAreaSqFt * 0.092903;
+        const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+        buildupValue = coveredAreaSqFt * buildupRate;
+      }
+    } else if (propertyType === 'commercial') {
+      if (plotType === 'buildup') {
+        const buildupType = formData.buildupType;
+        if (buildupType === 'single-shop' || buildupType === 'multiple-shops') {
+          let totalShopAreaSqFt = 0;
+          shops.forEach(area => totalShopAreaSqFt += parseFloat(area) || 0);
+          totalBuildupAreaSqMeters = totalShopAreaSqFt * 0.092903;
+          const buildupRate = CONSTRUCTION_RATES.commercial[buildupType];
+          buildupValue = totalShopAreaSqFt * buildupRate;
+        } else if (buildupType === 'mall') {
+          let totalFloorAreaSqFt = 0;
+          mallFloors.forEach(area => totalFloorAreaSqFt += parseFloat(area) || 0);
+          totalBuildupAreaSqMeters = totalFloorAreaSqFt * 0.092903;
+          const buildupRate = CONSTRUCTION_RATES.commercial[buildupType];
+          buildupValue = totalFloorAreaSqFt * buildupRate;
+        }
+      }
+    } else if (propertyType === 'agriculture') {
+      additionCharges += (parseInt(formData.nalkoopCount) || 0) * NALKOOP_RATE;
+      additionCharges += (parseInt(formData.borewellCount) || 0) * BOREWELL_RATE;
+
+      trees.forEach(tree => {
+        const count = parseInt(tree.count) || 0;
+        if (TREE_RATES[tree.type]) {
+          additionCharges += TREE_RATES[tree.type] * count;
+        }
+      });
+    }
+
+    let baseCircleRateValue = (totalPlotAreaSqMeters / 10.7639) * parseFloat(circleRateAmount);
+
+    if (formData.doubleSideRoad) {
+      baseCircleRateValue *= 1.10;
+    }
+
+    let finalCircleRateValue = baseCircleRateValue + buildupValue + additionCharges;
+    const finalValue = Math.max(parseFloat(salePrice), finalCircleRateValue);
+
+    let stampDuty = finalValue * STAMP_DUTY_RATE;
+    let registrationCharge = finalValue * REGISTRATION_CHARGE_RATE;
+    let deductionAmount = 0;
+
+    // Apply deductions
+    if (formData.deductionType === 'female') {
+      deductionAmount = finalValue * 0.01;
+      stampDuty -= deductionAmount;
+    } else if (formData.deductionType === 'ex-serviceman') {
+      stampDuty = 100;
+    } else if (formData.deductionType === 'handicapped') {
+      const handicappedDeductionBase = Math.min(finalValue, 500000);
+      deductionAmount = handicappedDeductionBase * 0.25;
+      stampDuty -= deductionAmount;
+    } else if (formData.deductionType === 'other') {
+      const otherDeductionPercent = parseFloat(formData.otherDeductionPercent) || 0;
+      deductionAmount = finalValue * (otherDeductionPercent / 100);
+      stampDuty -= deductionAmount;
+    }
+
+    stampDuty = Math.max(0, stampDuty);
+    const finalPayableAmount = stampDuty + registrationCharge;
+
+    return {
+      salePrice: parseFloat(salePrice),
+      totalPlotAreaSqMeters,
+      totalBuildupAreaSqMeters,
+      baseCircleRateValue,
+      finalCircleRateValue,
+      stampDuty,
+      registrationCharge,
+      finalPayableAmount,
+      deductionAmount,
+      propertyType,
+      plotType
+    };
+  };
+
+  // Show calculations
+  const handleShowCalculations = () => {
+    const results = calculateFormValues();
+    if (results) {
+      setCalculationResults(results);
+      setShowCalculations(true);
+    }
+  };
+
+  // Generate preview
+  const generatePreview = () => {
+    const results = calculateFormValues();
+    if (!results) return;
+
+    setCalculationResults(results);
+    setIsPreviewMode(true);
+  };
+
+  // Save data to local storage and backend
+  const handleSaveData = async () => {
+    const results = calculateFormValues();
+    if (!results) return;
+
+    // Instead of submitting directly, go to preview
+    const dataToSave = {
+      ...formData,
+      sellers,
+      buyers,
+      witnesses,
+      rooms,
+      trees,
+      shops,
+      mallFloors,
+      facilities,
+      dynamicFacilities,
+      propertyPhotos,
+      livePhotos,
+      calculations: results,
+      amount: 1500, // Base amount for sale deed
+      formType: 'sale-deed'
+    };
+
+    goToPreview(dataToSave);
+  };
+
+  const handleSaveDataDirect = async () => {
+    const results = calculateFormValues();
+    if (!results) return;
+
+    setIsLoading(true);
+    try {
+      // Save to local storage
+      saveDraft();
+
+      // Prepare data for backend
+      const dataToSave = {
+        ...formData,
+        sellers,
+        buyers,
+        witnesses,
+        rooms,
+        trees,
+        shops,
+        mallFloors,
+        facilities,
+        dynamicFacilities,
+        propertyPhotos,
+        livePhotos,
+        calculations: results
+      };
+
+      // Create FormData for file uploads
+      const formDataToSend = new FormData();
+      formDataToSend.append('data', JSON.stringify(dataToSave));
+
+      // Add uploaded files
+      uploadedFiles.forEach((fileObj, index) => {
+        formDataToSend.append(`file_${index}`, fileObj.file);
+      });
+
+      // Get authentication token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+
+      // Submit to backend
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:4001';
+      const headers = {};
+
+      // Add authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE}/api/sale-deed`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
+      }
+
+      const result = await response.json();
+      alert(result.message || 'Sale deed saved successfully!');
+    } catch (error) {
+      console.error('Error saving sale deed:', error);
+      alert('Failed to save sale deed: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Export data as JSON
+  const exportData = () => {
+    const results = calculateFormValues();
+    if (!results) return;
+
+    const dataToSave = {
+      ...formData,
+      sellers,
+      buyers,
+      witnesses,
+      rooms,
+      trees,
+      shops,
+      mallFloors,
+      facilities,
+      dynamicFacilities,
+      propertyPhotos,
+      livePhotos,
+      calculations: results
+    };
+
+    const dataStr = JSON.stringify(dataToSave, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "sale-deed-data.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("Form data exported as sale-deed-data.json");
+  };
+
+  // Clear form
+  const handleClearForm = () => {
+    setFormData({
+      documentType: '',
+      propertyType: '',
+      plotType: '',
+      salePrice: '',
+      circleRateAmount: '',
+      areaInputType: 'total',
+      area: '',
+      areaUnit: 'sq_meters',
+      propertyLength: '',
+      propertyWidth: '',
+      dimUnit: 'meters',
+      buildupType: 'single-shop',
+      numShops: 1,
+      numFloorsMall: 1,
+      numFloorsMulti: 1,
+      superAreaMulti: '',
+      coveredAreaMulti: '',
+      nalkoopCount: 0,
+      borewellCount: 0,
+      state: '',
+      district: '',
+      tehsil: '',
+      village: '',
+      khasraNo: '',
+      plotNo: '',
+      colonyName: '',
+      wardNo: '',
+      streetNo: '',
+      roadSize: '',
+      roadUnit: 'meter',
+      doubleSideRoad: false,
+      directionNorth: '',
+      directionEast: '',
+      directionSouth: '',
+      directionWest: '',
+      coveredParkingCount: 0,
+      openParkingCount: 0,
+      deductionType: '',
+      otherDeductionPercent: ''
+    });
+    // Clean up preview images
+    Object.values(previewImages).forEach(url => {
+      if (url) URL.revokeObjectURL(url);
+    });
+    setPreviewImages({});
+
+    setSellers([{ name: '', relation: '', address: '', mobile: '', idType: '', idNo: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null }]);
+    setBuyers([{ name: '', relation: '', address: '', mobile: '', idType: '', idNo: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null }]);
+    setWitnesses([
+      { name: '', relation: '', address: '', mobile: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null },
+      { name: '', relation: '', address: '', mobile: '', panCardNo: '', panCard: null, photo: null, id: null, signature: null }
+    ]);
+    setRooms([]);
+    setTrees([]);
+    setShops([]);
+    setMallFloors([]);
+    setFacilities([]);
+    setDynamicFacilities([]);
+    setShowCalculations(false);
+    setCalculationResults(null);
+    setUploadedFiles([]);
+    setIsPreviewMode(false);
+
+    // Clear local storage
+    localStorage.removeItem('sale_deed_draft_v1');
+    alert("Form cleared successfully");
+  };
+
+  // Preview component
+  const PreviewComponent = () => {
+    if (!calculationResults) return null;
+
+    return (
+      <div className="preview-wrap">
+        <div className="preview-controls">
+          <button
+            className="btn"
+            onClick={() => setIsPreviewMode(false)}
+          >
+            ✏️ Edit
+          </button>
+          <button
+            className="btn save"
+            onClick={handleSaveData}
+            disabled={isLoading}
+          >
+            {isLoading ? '⏳ Saving...' : '💾 Save'}
+          </button>
+          <button
+            className="btn"
+            onClick={() => window.print()}
+          >
+            🖨️ Print
+          </button>
+        </div>
+
+        <div className="preview-page">
+          <div className="watermark-layer">
+            {Array.from({ length: 20 }, (_, i) => (
+              <div key={i} className="wm">DRAFT</div>
+            ))}
+          </div>
+
+          <div className="preview-body">
+            <h2 style={{ textAlign: 'center', color: 'var(--brand)', marginBottom: '20px' }}>
+              Sale Deed Document
+            </h2>
+
+            <div className="preview-section">
+              <h3>Property Information</h3>
+              <p><strong>Document Type:</strong> {formData.documentType}</p>
+              <p><strong>Property Type:</strong> {formData.propertyType}</p>
+              <p><strong>Plot Type:</strong> {formData.plotType}</p>
+              <p><strong>Sale Price:</strong> ₹{formData.salePrice?.toLocaleString()}</p>
+              <p><strong>Circle Rate:</strong> ₹{formData.circleRateAmount?.toLocaleString()}</p>
+            </div>
+
+            <div className="preview-section">
+              <h3>Property Location</h3>
+              <p><strong>State:</strong> {formData.state}</p>
+              <p><strong>District:</strong> {formData.district}</p>
+              <p><strong>Tehsil:</strong> {formData.tehsil}</p>
+              <p><strong>Village:</strong> {formData.village}</p>
+              {formData.khasraNo && <p><strong>Khasra No:</strong> {formData.khasraNo}</p>}
+              {formData.plotNo && <p><strong>Plot No:</strong> {formData.plotNo}</p>}
+            </div>
+
+            {sellers.length > 0 && (
+              <div className="preview-section">
+                <h3>Sellers</h3>
+                {sellers.map((seller, index) => (
+                  <div key={index} className="preview-person">
+                    <p><strong>Name:</strong> {seller.name}</p>
+                    <p><strong>Relation:</strong> {seller.relation}</p>
+                    <p><strong>Address:</strong> {seller.address}</p>
+                    <p><strong>Mobile:</strong> {seller.mobile}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {buyers.length > 0 && (
+              <div className="preview-section">
+                <h3>Buyers</h3>
+                {buyers.map((buyer, index) => (
+                  <div key={index} className="preview-person">
+                    <p><strong>Name:</strong> {buyer.name}</p>
+                    <p><strong>Relation:</strong> {buyer.relation}</p>
+                    <p><strong>Address:</strong> {buyer.address}</p>
+                    <p><strong>Mobile:</strong> {buyer.mobile}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="preview-section">
+              <h3>Financial Calculations</h3>
+              <p><strong>Sale Price:</strong> ₹{calculationResults.salePrice?.toLocaleString()}</p>
+              <p><strong>Total Plot Area:</strong> {calculationResults.totalPlotAreaSqMeters?.toFixed(2)} sq meters</p>
+              <p><strong>Base Circle Rate Value:</strong> ₹{calculationResults.baseCircleRateValue?.toLocaleString()}</p>
+              <p><strong>Final Circle Rate Value:</strong> ₹{calculationResults.finalCircleRateValue?.toLocaleString()}</p>
+              <p><strong>Stamp Duty:</strong> ₹{calculationResults.stampDuty?.toLocaleString()}</p>
+              <p><strong>Registration Charge:</strong> ₹{calculationResults.registrationCharge?.toLocaleString()}</p>
+              <p><strong>Final Payable Amount:</strong> ₹{calculationResults.finalPayableAmount?.toLocaleString()}</p>
+            </div>
+
+            <div className="preview-signatures">
+              <div className="signature-section">
+                <div className="signature-line"></div>
+                <p>Seller Signature</p>
+              </div>
+              <div className="signature-section">
+                <div className="signature-line"></div>
+                <p>Buyer Signature</p>
+              </div>
+              <div className="signature-section">
+                <div className="signature-line"></div>
+                <p>Witness 1 Signature</p>
+              </div>
+              <div className="signature-section">
+                <div className="signature-line"></div>
+                <p>Witness 2 Signature</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Show preview if in preview mode
+  if (isPreviewMode) {
+    return <PreviewComponent />;
+  }
+
+  const inputClassName = "w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors";
+  const labelClassName = "block text-sm font-medium text-gray-700 mb-1.5";
+  const sectionHeaderClassName = "text-lg font-semibold text-gray-800 pb-2 border-b-2 border-blue-500 mb-6";
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50 w-full overflow-hidden">
+      <div className="w-[98%] max-w-none h-full flex flex-col mx-auto px-2 py-3">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 mb-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{t('saleDeed.header.title')}</h1>
+              <p className="text-sm text-gray-600 mt-1">{t('saleDeed.header.description')}</p>
+            </div>
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Hindi Language Toggle */}
+              <LanguageToggle 
+                isHindi={hindiInputEnabled} 
+                onToggle={toggleHindiInput}
+              />
+              <button
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                onClick={saveDraft}
+              >
+                {t('saleDeed.buttons.saveIcon')}
+              </button>
+              <button
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                onClick={generatePreview}
+              >
+                {t('saleDeed.buttons.previewIcon')}
+              </button>
+              {currentStep === 5 && (
+                <button
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  onClick={() => {
+                    const results = calculateFormValues();
+                    if (results) {
+                      const dataToSave = {
+                        ...formData,
+                        sellers,
+                        buyers,
+                        witnesses,
+                        rooms,
+                        trees,
+                        shops,
+                        mallFloors,
+                        facilities,
+                        dynamicFacilities,
+                        propertyPhotos,
+                        livePhotos,
+                        calculations: results,
+                        amount: 1500,
+                        formType: 'sale-deed'
+                      };
+                      goToPreview(dataToSave);
+                    }
+                  }}
+                >
+                  {t('saleDeed.buttons.submitIcon')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Form Content */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
+          <div className="text-center mb-6 shrink-0">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('saleDeed.header.title')}</h2>
+
+          </div>
+
+          {/* Stepper UI */}
+          <div className="mb-8 hidden sm:block shrink-0">
+            <div className="flex justify-between items-center relative">
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10"></div>
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-blue-600 transition-all duration-300 -z-10" style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%` }}></div>
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div key={step} className={`flex flex-col items-center bg-white px-2`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 transition-all duration-300 ${step <= currentStep ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-300'
+                    }`}>
+                    {step < currentStep ? '✓' : step}
+                  </div>
+                  <span className={`text-xs mt-1 font-medium ${step <= currentStep ? 'text-blue-600' : 'text-gray-400'}`}>
+                    {step === 1 ? t('saleDeed.stepper.property') : step === 2 ? t('saleDeed.stepper.seller') : step === 3 ? t('saleDeed.stepper.buyer') : step === 4 ? t('saleDeed.stepper.witness') : t('saleDeed.stepper.desc')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile Stepper */}
+          <div className="mb-6 sm:hidden">
+            <div className="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <span className="font-semibold text-blue-800">Step {currentStep} of {totalSteps}</span>
+              <span className="text-sm text-blue-600">
+                {currentStep === 1 ? t('saleDeed.stepper.propertyInfo') : currentStep === 2 ? t('saleDeed.stepper.sellerDetails') : currentStep === 3 ? t('saleDeed.stepper.buyerDetails') : currentStep === 4 ? t('saleDeed.stepper.witnessDetails') : t('saleDeed.stepper.propertyDesc')}
+              </span>
+            </div>
+          </div>
+
+          <form className="space-y-3">
+            {/* Property Information Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{ display: currentStep === 1 ? 'block' : 'none' }}>
+              <h3 className={sectionHeaderClassName}>{t('saleDeed.step1.title')}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.docType')} *</label>
+                  <select
+                    value={formData.documentType}
+                    onChange={(e) => handleInputChange('documentType', e.target.value)}
+                    required
+                    className={inputClassName}
+                  >
+                    <option value="" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.title')}</option>
+                    <option value="sale-deed" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.sale')}</option>
+                    <option value="gift-deed" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.gift')}</option>
+                    <option value="partition-deed" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.partition')}</option>
+                    <option value="exchange-deed" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.exchange')}</option>
+                    <option value="other-deed" className="text-gray-900 bg-white">{t('saleDeed.options.deeds.others')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.propertyType')} *</label>
+                  <select
+                    value={formData.propertyType}
+                    onChange={(e) => handleInputChange('propertyType', e.target.value)}
+                    required
+                    className={inputClassName}
+                  >
+                    <option value="" className="text-gray-900 bg-white">{t('saleDeed.options.property.title')}</option>
+                    <option value="residential" className="text-gray-900 bg-white">{t('saleDeed.options.property.residential')}</option>
+                    <option value="agriculture" className="text-gray-900 bg-white">{t('saleDeed.options.property.agriculture')}</option>
+                    <option value="commercial" className="text-gray-900 bg-white">{t('saleDeed.options.property.commercial')}</option>
+                    <option value="industrial" className="text-gray-900 bg-white">{t('saleDeed.options.property.industrial')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.plotType')} *</label>
+                  <select
+                    value={formData.plotType}
+                    onChange={(e) => handleInputChange('plotType', e.target.value)}
+                    required
+                    className={inputClassName}
+                  >
+                    <option value="" className="text-gray-900 bg-white">{t('saleDeed.options.plot.title')}</option>
+                    <option value="vacant" className="text-gray-900 bg-white">{t('saleDeed.options.plot.vacant')}</option>
+                    <option value="buildup" className="text-gray-900 bg-white">{t('saleDeed.options.plot.buildup')}</option>
+                    <option value="flat" className="text-gray-900 bg-white">{t('saleDeed.options.plot.flat')}</option>
+                    <option value="multistory" className="text-gray-900 bg-white">{t('saleDeed.options.plot.multistory')}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.salePrice')} *</label>
+                  <input
+                    type="number"
+                    value={formData.salePrice}
+                    onChange={(e) => handleInputChange('salePrice', e.target.value)}
+                    min="1"
+                    step="any"
+                    required
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.circleRate')} *</label>
+                  <input
+                    type="number"
+                    value={formData.circleRateAmount}
+                    onChange={(e) => handleInputChange('circleRateAmount', e.target.value)}
+                    min="1"
+                    step="any"
+                    required
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClassName}>{t('saleDeed.step1.areaInputType')}</label>
+                  <select
+                    value={formData.areaInputType}
+                    onChange={(e) => handleInputChange('areaInputType', e.target.value)}
+                    className={inputClassName}
+                  >
+                    <option value="total" className="text-gray-900 bg-white">{t('saleDeed.step1.totalArea')}</option>
+                    <option value="dimensions" className="text-gray-900 bg-white">{t('saleDeed.step1.dimensions')}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Area Input Section */}
+              {formData.areaInputType === 'total' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className={labelClassName}>{t('saleDeed.step1.area')} *</label>
+                    <input
+                      type="number"
+                      value={formData.area}
+                      onChange={(e) => handleInputChange('area', e.target.value)}
+                      min="1"
+                      step="any"
+                      placeholder={t('saleDeed.step1.areaPlaceholder')}
+                      required
+                      className={inputClassName}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClassName}>{t('saleDeed.step1.areaUnit')}</label>
+                    <select
+                      value={formData.areaUnit}
+                      onChange={(e) => handleInputChange('areaUnit', e.target.value)}
+                      className={inputClassName}
+                    >
+                      <option value="sq_meters" className="text-gray-900 bg-white">{t('saleDeed.options.units.sq_meters')}</option>
+                      <option value="sq_yards" className="text-gray-900 bg-white">{t('saleDeed.options.units.sq_yards')}</option>
+                      <option value="sq_feet" className="text-gray-900 bg-white">{t('saleDeed.options.units.sq_feet')}</option>
+                      <option value="acre" className="text-gray-900 bg-white">{t('saleDeed.options.units.acre')}</option>
+                      <option value="hectare" className="text-gray-900 bg-white">{t('saleDeed.options.units.hectare')}</option>
+                      <option value="bigha" className="text-gray-900 bg-white">{t('saleDeed.options.units.bigha')}</option>
+                      <option value="kanal" className="text-gray-900 bg-white">{t('saleDeed.options.units.kanal')}</option>
+                      <option value="marla" className="text-gray-900 bg-white">{t('saleDeed.options.units.marla')}</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {formData.areaInputType === 'dimensions' && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClassName}>
+                      {t('saleDeed.step1.length')}
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.propertyLength}
+                      onChange={(e) => handleInputChange('propertyLength', e.target.value)}
+                      min="1"
+                      step="any"
+                      className={inputClassName}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClassName}>
+                      {t('saleDeed.step1.width')}
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.propertyWidth}
+                      onChange={(e) => handleInputChange('propertyWidth', e.target.value)}
+                      min="1"
+                      step="any"
+                      className={inputClassName}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClassName}>
+                      {t('saleDeed.step1.unit')}
+                    </label>
+                    <select
+                      value={formData.dimUnit}
+                      onChange={(e) => handleInputChange('dimUnit', e.target.value)}
+                      className={inputClassName}
+                    >
+                      <option value="meters" className="text-gray-900 bg-white">{t('common.meters') || 'Meters'}</option>
+                      <option value="feet" className="text-gray-900 bg-white">{t('common.feet') || 'Feet'}</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Sections based on Property Type and Plot Type */}
+              {formData.propertyType === 'residential' && formData.plotType === 'flat' && (
+                <div className="mt-6 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Room Details</h4>
+                  <p className="text-sm text-gray-600 mb-4">Add rooms and their dimensions. These are used to calculate the built-up area.</p>
+
+                  {rooms.map((room, index) => (
+                    <div key={index} className="flex flex-wrap items-center gap-4 mb-4 p-3 border border-gray-200 rounded">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+                        <select
+                          value={room.type}
+                          onChange={(e) => updateRoom(index, 'type', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        >
+                          {ROOM_TYPES.map(type => (
+                            <option key={type} value={type.toLowerCase().replace(' ', '-')}>
+                              {type}
+                            </option>
+                          ))}
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Length (Ft):</label>
+                        <input
+                          type="number"
+                          value={room.length}
+                          onChange={(e) => updateRoom(index, 'length', e.target.value)}
+                          min="1"
+                          step="any"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Width (Ft):</label>
+                        <input
+                          type="number"
+                          value={room.width}
+                          onChange={(e) => updateRoom(index, 'width', e.target.value)}
+                          min="1"
+                          step="any"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeRoom(index)}
+                        className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addRoom}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Add Room
+                  </button>
+                </div>
+              )}
+
+              {formData.propertyType === 'agriculture' && (
+                <div className="mt-6 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Agriculture Land Additions</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nalkoop Count
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.nalkoopCount}
+                        onChange={(e) => handleInputChange('nalkoopCount', e.target.value)}
+                        min="0"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {formData.nalkoopCount > 0 && (
+                        <div className="text-sm text-gray-600 mt-1">
+                          Amount: ₹{(parseInt(formData.nalkoopCount) * NALKOOP_RATE).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Borewell Count
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.borewellCount}
+                        onChange={(e) => handleInputChange('borewellCount', e.target.value)}
+                        min="0"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {formData.borewellCount > 0 && (
+                        <div className="text-sm text-gray-600 mt-1">
+                          Amount: ₹{(parseInt(formData.borewellCount) * BOREWELL_RATE).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Trees</label>
+
+                    {trees.map((tree, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-4 mb-4 p-3 border border-gray-200 rounded">
+                        <div className="flex-1 min-w-[200px]">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Tree Type:</label>
+                          <select
+                            value={tree.type}
+                            onChange={(e) => updateTree(index, 'type', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          >
+                            {Object.keys(TREE_RATES).map(treeType => (
+                              <option key={treeType} value={treeType}>
+                                {treeType.charAt(0).toUpperCase() + treeType.slice(1)}
+                              </option>
+                            ))}
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                        <div className="flex-1 min-w-[150px]">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Count:</label>
+                          <input
+                            type="number"
+                            value={tree.count}
+                            onChange={(e) => updateTree(index, 'count', e.target.value)}
+                            min="1"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                            required
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeTree(index)}
+                          className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={addTree}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Add Tree
+                    </button>
+
+                    {trees.length > 0 && (
+                      <div className="mt-4 text-sm text-gray-600">
+                        Total Trees Amount: ₹{trees.reduce((total, tree) => {
+                          const count = parseInt(tree.count) || 0;
+                          const rate = TREE_RATES[tree.type] || 0;
+                          return total + (count * rate);
+                        }, 0).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {formData.propertyType === 'residential' && formData.plotType === 'multistory' && (
+                <div className="mt-6 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Multistory Building Details</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Number of Floors
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.numFloorsMulti}
+                        onChange={(e) => handleInputChange('numFloorsMulti', e.target.value)}
+                        min="1"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Super Area (Sq. Ft.)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.superAreaMulti}
+                        onChange={(e) => handleInputChange('superAreaMulti', e.target.value)}
+                        min="0"
+                        step="any"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Covered Area (Sq. Ft.)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.coveredAreaMulti}
+                        onChange={(e) => handleInputChange('coveredAreaMulti', e.target.value)}
+                        min="0"
+                        step="any"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {formData.propertyType === 'commercial' && formData.plotType === 'buildup' && (
+                <div className="mt-6 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Buildup Details</h4>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Buildup Type
+                    </label>
+                    <select
+                      value={formData.buildupType}
+                      onChange={(e) => handleInputChange('buildupType', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="single-shop">Single Shop</option>
+                      <option value="multiple-shops">Multiple Shops</option>
+                      <option value="mall">Mall</option>
+                    </select>
+                  </div>
+
+                  {(formData.buildupType === 'single-shop' || formData.buildupType === 'multiple-shops') && (
+                    <div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Number of Shops
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.numShops}
+                          onChange={(e) => handleInputChange('numShops', e.target.value)}
+                          min="1"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        {Array.from({ length: parseInt(formData.numShops) || 1 }, (_, index) => (
+                          <div key={index} className="border border-gray-200 rounded-lg p-4">
+                            <h5 className="text-md font-medium text-gray-700 mb-2">Shop {index + 1}</h5>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Shop Area (Sq.Ft.)
+                              </label>
+                              <input
+                                type="number"
+                                value={shops[index] || ''}
+                                onChange={(e) => {
+                                  const newShops = [...shops];
+                                  newShops[index] = e.target.value;
+                                  setShops(newShops);
+                                }}
+                                min="1"
+                                step="any"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.buildupType === 'mall' && (
+                    <div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Number of Floors
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.numFloorsMall}
+                          onChange={(e) => handleInputChange('numFloorsMall', e.target.value)}
+                          min="1"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        {Array.from({ length: parseInt(formData.numFloorsMall) || 1 }, (_, index) => (
+                          <div key={index} className="border border-gray-200 rounded-lg p-4">
+                            <h5 className="text-md font-medium text-gray-700 mb-2">Floor {index + 1}</h5>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Floor Area (Sq.Ft.)
+                              </label>
+                              <input
+                                type="number"
+                                value={mallFloors[index] || ''}
+                                onChange={(e) => {
+                                  const newMallFloors = [...mallFloors];
+                                  newMallFloors[index] = e.target.value;
+                                  setMallFloors(newMallFloors);
+                                }}
+                                min="1"
+                                step="any"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Common Facilities Section */}
+              {(formData.propertyType === 'residential' && (formData.plotType === 'flat' || formData.plotType === 'multistory')) && (
+                <div className="mt-6 border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Common Facilities</h4>
+                  <p className="text-sm text-gray-600 mb-4">These charges will increase the <strong>Circle Rate Value</strong>.</p>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="select-all-facilities"
+                        className="mr-2"
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          const facilityCheckboxes = document.querySelectorAll('input[name="facility"]');
+                          facilityCheckboxes.forEach(cb => {
+                            if (cb.id !== 'others') cb.checked = isChecked;
+                          });
+                        }}
+                      />
+                      <label htmlFor="select-all-facilities" className="text-sm font-medium text-gray-700">
+                        Select/Deselect All
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {[
+                        { value: 'swimming_pool', label: 'Swimming Pool', charge: 1 },
+                        { value: 'gym', label: 'Gymnasium', charge: 1 },
+                        { value: 'club_house', label: 'Club House', charge: 1 },
+                        { value: 'garden', label: 'Terrace Garden', charge: 1 },
+                        { value: 'security_guard', label: 'Security Guard', charge: 1 },
+                        { value: 'park', label: 'Park', charge: 1 },
+                        { value: 'lift', label: 'Lift', charge: 1 }
+                      ].map(facility => (
+                        <label key={facility.value} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            name="facility"
+                            value={facility.value}
+                            data-charge={facility.charge}
+                            className="mr-2"
+                          />
+                          {facility.label}
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Covered Parking Count
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.coveredParkingCount}
+                          onChange={(e) => handleInputChange('coveredParkingCount', e.target.value)}
+                          min="0"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Open Parking Count
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.openParkingCount}
+                          onChange={(e) => handleInputChange('openParkingCount', e.target.value)}
+                          min="0"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seller Details Section */}
+            <div className="form-section bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{ display: currentStep === 2 ? 'block' : 'none' }}>
+              <h3 className={sectionHeaderClassName}>{t('saleDeed.seller.title')}</h3>
+
+              {sellers.map((seller, index) => (
+                <div key={index} className="mb-8 last:mb-0">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">{index + 1}</span>
+                      {t('saleDeed.seller.info')}
+                    </h4>
+                    {sellers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSeller(index)}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                      >
+                        {t('saleDeed.buttons.remove')}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-5">
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.name')} / विक्रेता का नाम *</label>
+                      <HindiInput
+                        type="text"
+                        value={seller.name}
+                        onChange={(e) => updateSeller(index, 'name', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "विक्रेता का नाम दर्ज करें" : "Enter seller name"}
+                        required
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.relation')} / संबंध</label>
+                      <HindiInput
+                        type="text"
+                        value={seller.relation}
+                        onChange={(e) => updateSeller(index, 'relation', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पिता/पति का नाम" : "Father/Husband name"}
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.mobile')} / मोबाइल</label>
+                      <input
+                        type="tel"
+                        maxLength="10"
+                        pattern="\d{10}"
+                        title="Please enter a valid 10-digit mobile number"
+                        value={seller.mobile}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          updateSeller(index, 'mobile', val);
+                        }}
+                        placeholder="10 digit mobile"
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.address')} / पता</label>
+                      <HindiTextarea
+                        value={seller.address}
+                        onChange={(e) => updateSeller(index, 'address', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पूरा पता दर्ज करें" : "Enter complete address"}
+                        rows={2}
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.idType')}</label>
+                      <select
+                        value={seller.idType}
+                        onChange={(e) => updateSeller(index, 'idType', e.target.value)}
+                        className={inputClassName}
+                      >
+                        <option value="" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.title') || t('saleDeed.options.select')}</option>
+                        <option value="aadhaar" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.aadhaar')}</option>
+                        <option value="passport" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.passport')}</option>
+                        <option value="voter-id" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.voterId')}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.seller.idNo')}</label>
+                      <input
+                        type="text"
+                        value={seller.idNo}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (seller.idType === 'aadhaar') {
+                            val = val.replace(/\D/g, '').slice(0, 12);
+                          }
+                          updateSeller(index, 'idNo', val);
+                        }}
+                        maxLength={seller.idType === 'aadhaar' ? 12 : undefined}
+                        className={inputClassName}
+                        title={seller.idType === 'aadhaar' ? '12 Digit Aadhaar' : ''}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.seller.panCardNo')} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={seller.panCardNo}
+                        onChange={(e) => {
+                          let val = e.target.value.toUpperCase().slice(0, 10);
+                          updateSeller(index, 'panCardNo', val);
+                        }}
+                        maxLength={10}
+                        className={inputClassName}
+                        placeholder="ABCDE1234F"
+                        title="10 Character PAN Number"
+                      />
+                    </div>
+                  </div>
+
+                  {/* File Upload Section for Seller */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h5 className="text-md font-semibold text-gray-700 mb-3">{t('saleDeed.seller.docs')}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* PAN Card Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.seller.pan')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('seller', index, 'panCard', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`seller_${index}_panCard`] ? (
+                              <img
+                                src={previewImages[`seller_${index}_panCard`]}
+                                alt="PAN Card Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : seller.panCard ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{seller.panCard.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {seller.panCard && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('seller', index, 'panCard')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Photo Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.seller.photo')} *</label>
+                        <CameraCapture
+                          onCapture={(file, imageSrc) => handleCameraCapture('seller', index, 'photo', file, imageSrc)}
+                          label="Photo Capture"
+                          previewLabel="Photo Preview"
+                          width={240}
+                          height={300}
+                          aspectRatio={0.75}
+                          compact={true}
+                        />
+                        {seller.photo && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('seller', index, 'photo')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* ID Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.seller.idDoc')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('seller', index, 'id', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`seller_${index}_id`] ? (
+                              <img
+                                src={previewImages[`seller_${index}_id`]}
+                                alt="ID Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : seller.id ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{seller.id.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {seller.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('seller', index, 'id')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Signature Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.seller.signature')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange('seller', index, 'signature', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`seller_${index}_signature`] ? (
+                              <img
+                                src={previewImages[`seller_${index}_signature`]}
+                                alt="Signature Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : seller.signature ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{seller.signature.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {seller.signature && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('seller', index, 'signature')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addSeller}
+                className="btn add-btn"
+              >
+                + {t('saleDeed.buttons.addSeller')}
+              </button>
+            </div>
+
+            {/* Buyer Details Section */}
+            <div className="form-section bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+              <h3 className={sectionHeaderClassName}>{t('saleDeed.buyer.title')}</h3>
+
+              {buyers.map((buyer, index) => (
+                <div key={index} className="mb-8 last:mb-0">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">{index + 1}</span>
+                      {t('saleDeed.buyer.info')}
+                    </h4>
+                    {buyers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeBuyer(index)}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                      >
+                        {t('saleDeed.buttons.remove')}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6">
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.name')} / क्रेता का नाम *</label>
+                      <HindiInput
+                        type="text"
+                        value={buyer.name}
+                        onChange={(e) => updateBuyer(index, 'name', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "क्रेता का नाम दर्ज करें" : "Enter buyer name"}
+                        required
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.relation')} / संबंध</label>
+                      <HindiInput
+                        type="text"
+                        value={buyer.relation}
+                        onChange={(e) => updateBuyer(index, 'relation', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पिता/पति का नाम" : "Father/Husband name"}
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.mobile')} / मोबाइल</label>
+                      <input
+                        type="tel"
+                        maxLength="10"
+                        pattern="\d{10}"
+                        title="Please enter a valid 10-digit mobile number"
+                        value={buyer.mobile}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          updateBuyer(index, 'mobile', val);
+                        }}
+                        placeholder="10 digit mobile"
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.address')} / पता</label>
+                      <HindiTextarea
+                        value={buyer.address}
+                        onChange={(e) => updateBuyer(index, 'address', e.target.value)}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पूरा पता दर्ज करें" : "Enter complete address"}
+                        rows={2}
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.idType')}</label>
+                      <select
+                        value={buyer.idType}
+                        onChange={(e) => updateBuyer(index, 'idType', e.target.value)}
+                        className={inputClassName}
+                      >
+                        <option value="" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.title') || t('saleDeed.options.select')}</option>
+                        <option value="aadhaar" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.aadhaar')}</option>
+                        <option value="passport" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.passport')}</option>
+                        <option value="voter-id" className="text-gray-900 bg-white">{t('saleDeed.options.idTypes.voterId')}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>{t('saleDeed.buyer.idNo')}</label>
+                      <input
+                        type="text"
+                        value={buyer.idNo}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (buyer.idType === 'aadhaar') {
+                            val = val.replace(/\D/g, '').slice(0, 12);
+                          }
+                          updateBuyer(index, 'idNo', val);
+                        }}
+                        maxLength={buyer.idType === 'aadhaar' ? 12 : undefined}
+                        className={inputClassName}
+                        title={buyer.idType === 'aadhaar' ? '12 Digit Aadhaar' : ''}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.buyer.panCardNo')} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={buyer.panCardNo}
+                        onChange={(e) => {
+                          let val = e.target.value.toUpperCase().slice(0, 10);
+                          updateBuyer(index, 'panCardNo', val);
+                        }}
+                        maxLength={10}
+                        className={inputClassName}
+                        placeholder="ABCDE1234F"
+                        title="10 Character PAN Number"
+                      />
+                    </div>
+                  </div>
+
+                  {/* File Upload Section for Buyer */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h5 className="text-md font-semibold text-gray-700 mb-3">{t('saleDeed.buyer.docs')}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* PAN Card Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.buyer.pan')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('buyer', index, 'panCard', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`buyer_${index}_panCard`] ? (
+                              <img
+                                src={previewImages[`buyer_${index}_panCard`]}
+                                alt="PAN Card Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : buyer.panCard ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{buyer.panCard.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {buyer.panCard && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('buyer', index, 'panCard')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Photo Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.buyer.photo')} *</label>
+                        <CameraCapture
+                          onCapture={(file, imageSrc) => handleCameraCapture('buyer', index, 'photo', file, imageSrc)}
+                          label="Photo Capture"
+                          previewLabel="Photo Preview"
+                          width={240}
+                          height={300}
+                          aspectRatio={0.75}
+                          compact={true}
+                        />
+                        {buyer.photo && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('buyer', index, 'photo')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* ID Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.buyer.idDoc')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('buyer', index, 'id', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`buyer_${index}_id`] ? (
+                              <img
+                                src={previewImages[`buyer_${index}_id`]}
+                                alt="ID Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : buyer.id ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{buyer.id.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {buyer.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('buyer', index, 'id')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Signature Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.buyer.signature')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange('buyer', index, 'signature', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`buyer_${index}_signature`] ? (
+                              <img
+                                src={previewImages[`buyer_${index}_signature`]}
+                                alt="Signature Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : buyer.signature ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{buyer.signature.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {buyer.signature && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('buyer', index, 'signature')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            {t('saleDeed.buttons.remove')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addBuyer}
+                className="btn add-btn"
+              >
+                + {t('saleDeed.buttons.addBuyer')}
+              </button>
+            </div>
+
+            {/* Party Details Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+              <h3 className={sectionHeaderClassName}>
+                {t('saleDeed.buyer.partyDetails')}
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('saleDeed.buyer.firstParty')}
+                  </label>
+                  <div className="font-bold text-blue-600">
+                    {sellers.filter(s => s.name.trim()).map(seller =>
+                      <div key={seller.name}>{seller.name} {t('saleDeed.buyer.hereinafterFirst')}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('saleDeed.buyer.secondParty')}
+                  </label>
+                  <div className="font-bold text-green-600">
+                    {buyers.filter(b => b.name.trim()).map(buyer =>
+                      <div key={buyer.name}>{buyer.name} {t('saleDeed.buyer.hereinafterSecond')}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Witness Details Section */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white" style={{ display: currentStep === 4 ? 'block' : 'none' }}>
+              <h3 className={sectionHeaderClassName}>
+                {t('saleDeed.witness.title')}
+              </h3>
+
+              {witnesses.map((witness, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">{t('saleDeed.witness.info')} {index + 1}</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.name')} / गवाह का नाम *
+                      </label>
+                      <HindiInput
+                        type="text"
+                        value={witness.name}
+                        onChange={(e) => {
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].name = e.target.value;
+                          setWitnesses(newWitnesses);
+                        }}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "गवाह का नाम दर्ज करें" : "Enter witness name"}
+                        className={inputClassName}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.relation')} / संबंध
+                      </label>
+                      <HindiInput
+                        type="text"
+                        value={witness.relation}
+                        onChange={(e) => {
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].relation = e.target.value;
+                          setWitnesses(newWitnesses);
+                        }}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पिता/पति का नाम" : "Father/Husband name"}
+                        className={inputClassName}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.mobile')} / मोबाइल
+                      </label>
+                      <input
+                        type="tel"
+                        maxLength="10"
+                        pattern="\d{10}"
+                        title="Please enter a valid 10-digit mobile number"
+                        value={witness.mobile}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].mobile = val;
+                          setWitnesses(newWitnesses);
+                        }}
+                        placeholder="10 digit mobile"
+                        className={inputClassName}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.address')} / पता
+                      </label>
+                      <HindiTextarea
+                        value={witness.address}
+                        onChange={(e) => {
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].address = e.target.value;
+                          setWitnesses(newWitnesses);
+                        }}
+                        enableHindi={hindiInputEnabled}
+                        placeholder={hindiInputEnabled ? "पूरा पता दर्ज करें" : "Enter complete address"}
+                        className={inputClassName}
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.age')} / आयु
+                      </label>
+                      <input
+                        type="number"
+                        value={witness.age}
+                        onChange={(e) => {
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].age = e.target.value;
+                          setWitnesses(newWitnesses);
+                        }}
+                        className={inputClassName}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>
+                        {t('saleDeed.witness.panCardNo')} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={witness.panCardNo}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase().slice(0, 10);
+                          const newWitnesses = [...witnesses];
+                          newWitnesses[index].panCardNo = val;
+                          setWitnesses(newWitnesses);
+                        }}
+                        maxLength={10}
+                        className={inputClassName}
+                        placeholder="ABCDE1234F"
+                        title="10 Character PAN Number"
+                      />
+                    </div>
+                  </div>
+
+                  {/* File Upload Section for Witness */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h5 className="text-md font-semibold text-gray-700 mb-3">{t('saleDeed.witness.docs')}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* PAN Card Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.witness.pan')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('witness', index, 'panCard', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`witness_${index}_panCard`] ? (
+                              <img
+                                src={previewImages[`witness_${index}_panCard`]}
+                                alt="PAN Card Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : witness.panCard ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{witness.panCard.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {witness.panCard && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('witness', index, 'panCard')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Photo Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.witness.photo')} *</label>
+                        <CameraCapture
+                          onCapture={(file, imageSrc) => handleCameraCapture('witness', index, 'photo', file, imageSrc)}
+                          label="Photo Capture"
+                          previewLabel="Photo Preview"
+                          width={240}
+                          height={300}
+                          aspectRatio={0.75}
+                          compact={true}
+                        />
+                        {witness.photo && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('witness', index, 'photo')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* ID Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.witness.idDoc')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileChange('witness', index, 'id', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`witness_${index}_id`] ? (
+                              <img
+                                src={previewImages[`witness_${index}_id`]}
+                                alt="ID Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : witness.id ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{witness.id.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {witness.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('witness', index, 'id')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Signature Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t('saleDeed.witness.signature')} *</label>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange('witness', index, 'signature', e.target.files[0])}
+                            className="w-full md:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white flex-shrink-0">
+                            {previewImages[`witness_${index}_signature`] ? (
+                              <img
+                                src={previewImages[`witness_${index}_signature`]}
+                                alt="Signature Preview"
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : witness.signature ? (
+                              <span className="text-xs text-gray-500 text-center px-2">{witness.signature.name}</span>
+                            ) : (
+                              <span className="text-xs text-gray-400 text-center">Preview</span>
+                            )}
+                          </div>
+                        </div>
+                        {witness.signature && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile('witness', index, 'signature')}
+                            className="mt-2 text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Property Description Section */}
+            <div className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200" style={{ display: currentStep === 5 ? 'block' : 'none' }}>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3 pb-2 border-b border-gray-200">{t('saleDeed.desc.title')}</h3>
+
+              <LocationSelector
+                formData={formData}
+                setFormData={setFormData}
+                className="mb-4"
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3">
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('saleDeed.desc.khasra')}</label>
+                  <input
+                    type="text"
+                    value={formData.khasraNo}
+                    onChange={(e) => handleInputChange('khasraNo', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('saleDeed.desc.plot')}</label>
+                  <input
+                    type="text"
+                    value={formData.plotNo}
+                    onChange={(e) => handleInputChange('plotNo', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('saleDeed.desc.colony')}</label>
+                  <input
+                    type="text"
+                    value={formData.colonyName}
+                    onChange={(e) => handleInputChange('colonyName', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('saleDeed.desc.ward')}</label>
+                  <input
+                    type="text"
+                    value={formData.wardNo}
+                    onChange={(e) => handleInputChange('wardNo', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('saleDeed.desc.street')}</label>
+                  <input
+                    type="text"
+                    value={formData.streetNo}
+                    onChange={(e) => handleInputChange('streetNo', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label>{t('saleDeed.desc.roadSize')}</label>
+                  <input
+                    type="number"
+                    value={formData.roadSize}
+                    onChange={(e) => handleInputChange('roadSize', e.target.value)}
+                    step="any"
+                    placeholder={t('saleDeed.desc.roadSize')}
+                  />
+                </div>
+
+                <div>
+                  <label>{t('saleDeed.desc.roadUnit')}</label>
+                  <select
+                    value={formData.roadUnit}
+                    onChange={(e) => handleInputChange('roadUnit', e.target.value)}
+                  >
+                    <option value="meter">{t('saleDeed.desc.roadUnits.meter')}</option>
+                    <option value="foot">{t('saleDeed.desc.roadUnits.foot')}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="double-side-road"
+                    checked={formData.doubleSideRoad}
+                    onChange={(e) => handleInputChange('doubleSideRoad', e.target.checked)}
+                    className="mr-2"
+                  />
+                  <label htmlFor="double-side-road" className="text-sm font-medium text-gray-700">
+                    {t('saleDeed.desc.doubleSideRoad')}
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('saleDeed.desc.directions')}
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder={t('saleDeed.desc.north')}
+                    value={formData.directionNorth}
+                    onChange={(e) => handleInputChange('directionNorth', e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder={t('saleDeed.desc.east')}
+                    value={formData.directionEast}
+                    onChange={(e) => handleInputChange('directionEast', e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder={t('saleDeed.desc.south')}
+                    value={formData.directionSouth}
+                    onChange={(e) => handleInputChange('directionSouth', e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <input
+                    type="text"
+                    placeholder={t('saleDeed.desc.west')}
+                    value={formData.directionWest}
+                    onChange={(e) => handleInputChange('directionWest', e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Property Photos Section */}
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('saleDeed.desc.propertyPhotos')}</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  {t('saleDeed.desc.photosDesc')}
+                </p>
+
+                {/* Property Photos Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('saleDeed.desc.photos')}
+                  </label>
+                  <div className="flex flex-wrap gap-4 mb-4">
+                    {propertyPhotos.map((photo) => (
+                      <div key={photo.id} className="relative">
+                        <div className="w-32 h-32 border border-gray-300 rounded-lg overflow-hidden">
+                          <img
+                            src={photo.preview}
+                            alt="Property"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePropertyPhoto(photo.id, false)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handlePropertyPhotoUpload(e.target.files[0], false);
+                        e.target.value = ''; // Reset input
+                      }
+                    }}
+                    className="text-sm"
+                    multiple
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Deductions Section */}
+            {/* <div className="border border-gray-200 rounded-lg p-6">
+            <h3 className="text-xl font-medium text-gray-700 border-b-2 border-blue-500 pb-2 mb-6">
+              Deductions
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">Select only ONE option for stamp duty deduction.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Buyer's Gender
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="female"
+                      checked={formData.deductionType === 'female'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Female (-1% Stamp Duty)
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="male"
+                      checked={formData.deductionType === 'male'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Male
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="transgender"
+                      checked={formData.deductionType === 'transgender'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Transgender
+                  </label>
+                </div>
+              </div> */}
+
+            {/* <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Other Deductions
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="ex-serviceman"
+                      checked={formData.deductionType === 'ex-serviceman'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Ex-Serviceman (₹100 Stamp Duty)
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="handicapped"
+                      checked={formData.deductionType === 'handicapped'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Handicapped (25% on first ₹5 Lakh of Circle Value)
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="deduction-type"
+                      value="other"
+                      checked={formData.deductionType === 'other'}
+                      onChange={(e) => handleInputChange('deductionType', e.target.value)}
+                      className="mr-2"
+                    />
+                    Other Deduction (%)
+                  </label>
+                </div>
+              </div>
+               */}
+
+            {/* {formData.deductionType === 'other' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter Percentage
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.otherDeductionPercent}
+                    onChange={(e) => handleInputChange('otherDeductionPercent', e.target.value)}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Deductions Section */}
+            <div className="form-section" style={{ display: currentStep === 5 ? 'block' : 'none' }}>
+              <h3>{t('saleDeed.desc.deductions.title')}</h3>
+              <p className="text-sm text-gray-600 mb-6">{t('saleDeed.desc.deductions.subtitle')}</p>
+
+              {/* Buyer's Gender Section */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">{t('saleDeed.desc.deductions.genderTitle')}</h4>
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buyerGender"
+                      value="female"
+                      checked={formData.buyerGender === 'female'}
+                      onChange={(e) => handleInputChange('buyerGender', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.female')}</span>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buyerGender"
+                      value="male"
+                      checked={formData.buyerGender === 'male'}
+                      onChange={(e) => handleInputChange('buyerGender', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.male')}</span>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buyerGender"
+                      value="transgender"
+                      checked={formData.buyerGender === 'transgender'}
+                      onChange={(e) => handleInputChange('buyerGender', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.transgender')}</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Other Deductions Section */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">{t('saleDeed.desc.deductions.othersTitle')}</h4>
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="otherDeduction"
+                      value="ex-serviceman"
+                      checked={formData.otherDeduction === 'ex-serviceman'}
+                      onChange={(e) => handleInputChange('otherDeduction', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.exServiceman')}</span>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="otherDeduction"
+                      value="handicapped"
+                      checked={formData.otherDeduction === 'handicapped'}
+                      onChange={(e) => handleInputChange('otherDeduction', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.handicapped')}</span>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="otherDeduction"
+                      value="other"
+                      checked={formData.otherDeduction === 'other'}
+                      onChange={(e) => handleInputChange('otherDeduction', e.target.value)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">{t('saleDeed.desc.deductions.otherPercent')}</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={calculateFormValues}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  {t('saleDeed.buttons.preview')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                  {t('saleDeed.buttons.saveDraft')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={loadDraft}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                >
+                  {t('saleDeed.buttons.importData') || 'Import Data'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearForm}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  {t('saleDeed.buttons.clearAll') || 'Clear All'}
+                </button>
+              </div>
+            </div>
+
+            {/* Calculation Display */}
+            {showCalculations && calculationResults && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6" style={{ display: currentStep === 5 ? 'block' : 'none' }}>
+                <h3 className="text-xl font-semibold text-blue-800 mb-4">{t('saleDeed.desc.calculation.title')}</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.salePrice')}</span>
+                    <strong className="text-gray-800">₹{calculationResults.salePrice.toFixed(2)}</strong>
+                  </div>
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.plotArea')}</span>
+                    <strong className="text-gray-800">
+                      {calculationResults.propertyType === 'agriculture'
+                        ? `${(calculationResults.totalPlotAreaSqMeters / 10000).toFixed(4)} ${t('saleDeed.desc.calculation.hectare')}`
+                        : `${calculationResults.totalPlotAreaSqMeters.toFixed(2)} ${t('saleDeed.desc.calculation.sqMeters')}`
+                      }
+                    </strong>
+                  </div>
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.totalBuildup')}</span>
+                    <strong className="text-gray-800">{calculationResults.totalBuildupAreaSqMeters.toFixed(2)} {t('saleDeed.desc.calculation.sqMeters')}</strong>
+                  </div>
+                  {calculationResults.totalBuildupAreaSqMeters > calculationResults.totalPlotAreaSqMeters && (
+                    <div className="text-red-600 font-bold">
+                      {t('saleDeed.desc.calculation.warningBuildup')}
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.circleValueBefore')}</span>
+                    <strong className="text-gray-800">₹{calculationResults.baseCircleRateValue.toFixed(2)}</strong>
+                  </div>
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.circleValueAfter')}</span>
+                    <strong className="text-gray-800">₹{calculationResults.finalCircleRateValue.toFixed(2)}</strong>
+                  </div>
+                  {calculationResults.deductionAmount > 0 && (
+                    <div className="flex justify-between text-lg">
+                      <span>{t('saleDeed.desc.calculation.deduction')}</span>
+                      <strong className="text-red-600">- ₹{calculationResults.deductionAmount.toFixed(2)}</strong>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.stampDuty')}</span>
+                    <strong className="text-gray-800">₹{calculationResults.stampDuty.toFixed(2)}</strong>
+                  </div>
+                  <div className="flex justify-between text-lg">
+                    <span>{t('saleDeed.desc.calculation.registration')}</span>
+                    <strong className="text-gray-800">₹{calculationResults.registrationCharge.toFixed(2)}</strong>
+                  </div>
+                  <div className="flex justify-between text-2xl font-bold text-blue-600 border-t-2 border-blue-600 pt-3">
+                    <span>{t('saleDeed.desc.calculation.totalPayable')}</span>
+                    <strong>₹{calculationResults.finalPayableAmount.toFixed(2)}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Controls */}
+            <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
+              <div>
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="px-6 py-2.5 rounded-lg font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 flex items-center gap-2 border border-transparent hover:border-blue-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                    </svg>
+                    {t('saleDeed.buttons.back')}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                {currentStep < 5 ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="group px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-blue-500/30 font-semibold transition-all duration-200 transform hover:-translate-y-0.5 flex items-center gap-2"
+                  >
+                    {t('saleDeed.buttons.next')}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:translate-x-1 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                ) : (
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm text-green-600 font-medium px-3 py-1 bg-green-50 rounded-full border border-green-100 mb-1">
+                      {t('saleDeed.buttons.stepsCompleted')}
+                    </span>
+                    <span className="text-xs text-gray-400">{t('saleDeed.buttons.reviewSubmit')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SaleDeedForm = () => {
+  const { t } = useTranslation();
+  return (
+    <FormWorkflowProvider formType="sale-deed">
+      <FormWorkflow
+        formTitle={t('saleDeed.header.title')}
+        formType="sale-deed"
+        fields={[
+          { name: 'documentType', label: t('saleDeed.step1.docType') },
+          { name: 'propertyType', label: t('saleDeed.step1.propertyType') },
+          { name: 'salePrice', label: t('saleDeed.step1.salePrice') },
+          { name: 'area', label: t('saleDeed.step1.area') },
+        ]}
+      >
+        <SaleDeedFormContent />
+      </FormWorkflow>
+    </FormWorkflowProvider>
+  );
+};
+
+export default SaleDeedForm;
+
+// "use client";
+// import React, { useState, useEffect, useRef } from "react";
+// import axios from 'axios';
+// import "../app/sale-deed/saledeed.css";
+
+// // Constants
+// const STAMP_DUTY_RATE = 0.07;
+// const REGISTRATION_CHARGE_RATE = 0.01;
+// const PARKING_CHARGE_RATE = 0.04;
+// const NALKOOP_RATE = 20000;
+// const BOREWELL_RATE = 15000;
+// const TREE_RATES = {
+//   'mango': 15000,
+//   'neem': 10000,
+//   'eucalyptus': 5000,
+//   'guava': 8000
+// };
+
+// const CONSTRUCTION_RATES = {
+//   'residential': {
+//     '1st_class': 16000,
+//     '2nd_class': 14000,
+//     '3rd_class': 12000,
+//     '4th_class': 10000
+//   },
+//   'commercial': {
+//     'single-shop': 18000,
+//     'multiple-shops': 20000,
+//     'mall': 22000
+//   }
+// };
+
+// const ROOM_TYPES = ['Bedroom', 'Kitchen', 'Bathroom', 'Drawing Room', 'Dining Room', 'Hall', 'Open Area', 'Balcony', 'Washing Room', 'Servant Room'];
+
+// // Utility functions
+// const convertToSqMeters = (value, unit) => {
+//   if (!value) return 0;
+//   switch (unit) {
+//     case 'sq_yards':
+//       return value * 0.836127;
+//     case 'sq_feet':
+//       return value * 0.092903;
+//     case 'acre':
+//       return value * 4046.86;
+//     case 'hectare':
+//       return value * 10000;
+//     case 'sq_meters':
+//     default:
+//       return value;
+//   }
+// };
+
+// const convertToMeters = (value, unit) => {
+//   if (!value) return 0;
+//   switch (unit) {
+//     case 'feet':
+//       return value * 0.3048;
+//     case 'meters':
+//     default:
+//       return value;
+//   }
+// };
+
+// export default function SaleDeedForm() {
+//   // Form state
+//   const [formData, setFormData] = useState({
+//     documentType: '',
+//     propertyType: '',
+//     plotType: '',
+//     salePrice: '',
+//     circleRateAmount: '',
+//     areaInputType: 'total',
+//     area: '',
+//     areaUnit: 'sq_meters',
+//     propertyLength: '',
+//     propertyWidth: '',
+//     dimUnit: 'meters',
+//     buildupType: 'single-shop',
+//     numShops: 1,
+//     numFloorsMall: 1,
+//     numFloorsMulti: 1,
+//     superAreaMulti: '',
+//     coveredAreaMulti: '',
+//     nalkoopCount: 0,
+//     borewellCount: 0,
+//     state: '',
+//     district: '',
+//     tehsil: '',
+//     village: '',
+//     khasraNo: '',
+//     plotNo: '',
+//     colonyName: '',
+//     wardNo: '',
+//     streetNo: '',
+//     roadSize: '',
+//     roadUnit: 'meter',
+//     doubleSideRoad: false,
+//     directionNorth: '',
+//     directionEast: '',
+//     directionSouth: '',
+//     directionWest: '',
+//     coveredParkingCount: 0,
+//     openParkingCount: 0,
+//     deductionType: '',
+//     otherDeductionPercent: '',
+//     buyerGender: '',
+//     otherDeduction: ''
+//   });
+
+//   // Dynamic arrays
+//   const [sellers, setSellers] = useState([{
+//     name: '',
+//     relation: '',
+//     address: '',
+//     mobile: '',
+//     idType: '',
+//     idNo: ''
+//   }]);
+
+//   const [buyers, setBuyers] = useState([{
+//     name: '',
+//     relation: '',
+//     address: '',
+//     mobile: '',
+//     idType: '',
+//     idNo: ''
+//   }]);
+
+//   const [witnesses, setWitnesses] = useState([
+//     { name: '', relation: '', address: '', mobile: '' },
+//     { name: '', relation: '', address: '', mobile: '' }
+//   ]);
+
+//   const [rooms, setRooms] = useState([]);
+//   const [trees, setTrees] = useState([]);
+//   const [shops, setShops] = useState([]);
+//   const [mallFloors, setMallFloors] = useState([]);
+//   const [facilities, setFacilities] = useState([]);
+//   const [dynamicFacilities, setDynamicFacilities] = useState([]);
+//   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+//   // UI state
+//   const [showCalculations, setShowCalculations] = useState(false);
+//   const [calculationResults, setCalculationResults] = useState(null);
+//   const [isPreviewMode, setIsPreviewMode] = useState(false);
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [error, setError] = useState(null);
+
+//   // Refs for file inputs
+//   const fileInputRef = useRef(null);
+
+//   // Handle form input changes
+//   const handleInputChange = (field, value) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       [field]: value
+//     }));
+//   };
+
+//   // Add seller
+//   const addSeller = () => {
+//     setSellers(prev => [...prev, {
+//       name: '',
+//       relation: '',
+//       address: '',
+//       mobile: '',
+//       idType: '',
+//       idNo: ''
+//     }]);
+//   };
+
+//   // Remove seller
+//   const removeSeller = (index) => {
+//     if (sellers.length > 1) {
+//       setSellers(prev => prev.filter((_, i) => i !== index));
+//     }
+//   };
+
+//   // Update seller
+//   const updateSeller = (index, field, value) => {
+//     setSellers(prev => prev.map((seller, i) =>
+//       i === index ? { ...seller, [field]: value } : seller
+//     ));
+//   };
+
+//   // Add buyer
+//   const addBuyer = () => {
+//     setBuyers(prev => [...prev, {
+//       name: '',
+//       relation: '',
+//       address: '',
+//       mobile: '',
+//       idType: '',
+//       idNo: ''
+//     }]);
+//   };
+
+//   // Remove buyer
+//   const removeBuyer = (index) => {
+//     if (buyers.length > 1) {
+//       setBuyers(prev => prev.filter((_, i) => i !== index));
+//     }
+//   };
+
+//   // Update buyer
+//   const updateBuyer = (index, field, value) => {
+//     setBuyers(prev => prev.map((buyer, i) =>
+//       i === index ? { ...buyer, [field]: value } : buyer
+//     ));
+//   };
+
+//   // Add room
+//   const addRoom = () => {
+//     setRooms(prev => [...prev, {
+//       type: 'bedroom',
+//       length: '',
+//       width: ''
+//     }]);
+//   };
+
+//   // Remove room
+//   const removeRoom = (index) => {
+//     setRooms(prev => prev.filter((_, i) => i !== index));
+//   };
+
+//   // Update room
+//   const updateRoom = (index, field, value) => {
+//     setRooms(prev => prev.map((room, i) =>
+//       i === index ? { ...room, [field]: value } : room
+//     ));
+//   };
+
+//   // Add tree
+//   const addTree = () => {
+//     setTrees(prev => [...prev, {
+//       type: 'mango',
+//       count: 1
+//     }]);
+//   };
+
+//   // Remove tree
+//   const removeTree = (index) => {
+//     setTrees(prev => prev.filter((_, i) => i !== index));
+//   };
+
+//   // Update tree
+//   const updateTree = (index, field, value) => {
+//     setTrees(prev => prev.map((tree, i) =>
+//       i === index ? { ...tree, [field]: value } : tree
+//     ));
+//   };
+
+//   // File upload functions
+//   const handleFileUpload = (event) => {
+//     const files = Array.from(event.target.files);
+//     const newFiles = files.map(file => ({
+//       id: Math.random().toString(36).substr(2, 9),
+//       file,
+//       name: file.name,
+//       size: file.size,
+//       type: file.type,
+//       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+//     }));
+
+//     setUploadedFiles(prev => [...prev, ...newFiles]);
+//   };
+
+//   const removeFile = (fileId) => {
+//     setUploadedFiles(prev => {
+//       const fileToRemove = prev.find(f => f.id === fileId);
+//       if (fileToRemove && fileToRemove.preview) {
+//         URL.revokeObjectURL(fileToRemove.preview);
+//       }
+//       return prev.filter(f => f.id !== fileId);
+//     });
+//   };
+
+//   // Local storage functions
+//   const saveDraft = () => {
+//     try {
+//       const draftData = {
+//         formData,
+//         sellers,
+//         buyers,
+//         witnesses,
+//         rooms,
+//         trees,
+//         shops,
+//         mallFloors,
+//         facilities,
+//         dynamicFacilities,
+//         calculations: calculationResults,
+//         timestamp: new Date().toISOString()
+//       };
+
+//       localStorage.setItem('sale_deed_draft_v1', JSON.stringify(draftData));
+//       alert('Draft saved successfully to local storage!');
+//     } catch (error) {
+//       console.error('Error saving draft:', error);
+//       alert('Failed to save draft: ' + error.message);
+//     }
+//   };
+
+//   const loadDraft = () => {
+//     try {
+//       const savedDraft = localStorage.getItem('sale_deed_draft_v1');
+//       if (!savedDraft) {
+//         alert('No saved draft found!');
+//         return;
+//       }
+
+//       const draftData = JSON.parse(savedDraft);
+
+//       setFormData(draftData.formData || formData);
+//       setSellers(draftData.sellers || sellers);
+//       setBuyers(draftData.buyers || buyers);
+//       setWitnesses(draftData.witnesses || witnesses);
+//       setRooms(draftData.rooms || rooms);
+//       setTrees(draftData.trees || trees);
+//       setShops(draftData.shops || shops);
+//       setMallFloors(draftData.mallFloors || mallFloors);
+//       setFacilities(draftData.facilities || facilities);
+//       setDynamicFacilities(draftData.dynamicFacilities || dynamicFacilities);
+//       setCalculationResults(draftData.calculations || null);
+
+//       if (draftData.calculations) {
+//         setShowCalculations(true);
+//       }
+
+//       alert('Draft loaded successfully!');
+//     } catch (error) {
+//       console.error('Error loading draft:', error);
+//       alert('Failed to load draft: ' + error.message);
+//     }
+//   };
+
+//   // Load saved sale deeds from backend
+//   const loadSavedSaleDeeds = async () => {
+//     setIsLoading(true);
+//     try {
+//       const response = await axios.get('/api/sale-deed', {
+//         withCredentials: true
+//       });
+//       // You can store these in state if you want to display a list
+//       console.log('Saved sale deeds:', response.data);
+//     } catch (error) {
+//       setError('Failed to load saved sale deeds: ' + error.message);
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   // Auto-save functionality
+//   useEffect(() => {
+//     const autoSave = () => {
+//       if (formData.documentType && formData.propertyType) {
+//         saveDraft();
+//       }
+//     };
+
+//     const timeoutId = setTimeout(autoSave, 5000);
+//     return () => clearTimeout(timeoutId);
+//   }, [formData, sellers, buyers, witnesses]);
+
+//   // Load draft on component mount
+//   useEffect(() => {
+//     loadDraft();
+//     loadSavedSaleDeeds();
+//   }, []);
+
+//   // Calculate form values
+//   const calculateFormValues = () => {
+//     const { propertyType, plotType, salePrice, circleRateAmount, areaInputType, area, areaUnit, propertyLength, propertyWidth, dimUnit } = formData;
+
+//     if (!formData.documentType || !propertyType || !salePrice || !circleRateAmount) {
+//       alert("Please fill in all required fields (Document Type, Property Type, Sale Price, Circle Rate Amount).");
+//       return null;
+//     }
+
+//     let totalPlotAreaSqMeters = 0;
+//     if (propertyType !== 'agriculture') {
+//       if (areaInputType === 'total') {
+//         totalPlotAreaSqMeters = convertToSqMeters(parseFloat(area) || 0, areaUnit);
+//       } else if (areaInputType === 'dimensions') {
+//         const lengthMeters = convertToMeters(parseFloat(propertyLength) || 0, dimUnit);
+//         const widthMeters = convertToMeters(parseFloat(propertyWidth) || 0, dimUnit);
+//         totalPlotAreaSqMeters = lengthMeters * widthMeters;
+//       }
+//     }
+
+//     if (totalPlotAreaSqMeters <= 0 && propertyType !== 'flat' && propertyType !== 'multistory') {
+//       alert("Please provide a valid property area.");
+//       return null;
+//     }
+
+//     let totalBuildupAreaSqMeters = 0;
+//     let buildupValue = 0;
+//     let additionCharges = 0;
+
+//     if (propertyType === 'residential') {
+//       if (plotType === 'buildup') {
+//         const buildupAreaSqFt = totalPlotAreaSqMeters * 10.7639;
+//         const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+//         buildupValue = buildupAreaSqFt * buildupRate;
+//       } else if (plotType === 'flat') {
+//         let totalRoomsAreaSqFt = 0;
+//         rooms.forEach(room => {
+//           const length = parseFloat(room.length) || 0;
+//           const width = parseFloat(room.width) || 0;
+//           totalRoomsAreaSqFt += length * width;
+//         });
+//         totalBuildupAreaSqMeters = totalRoomsAreaSqFt * 0.092903;
+//         const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+//         buildupValue = totalRoomsAreaSqFt * buildupRate;
+//       } else if (plotType === 'multistory') {
+//         const coveredAreaSqFt = parseFloat(formData.coveredAreaMulti) || 0;
+//         totalBuildupAreaSqMeters = coveredAreaSqFt * 0.092903;
+//         const buildupRate = CONSTRUCTION_RATES.residential['1st_class'];
+//         buildupValue = coveredAreaSqFt * buildupRate;
+//       }
+//     } else if (propertyType === 'commercial') {
+//       if (plotType === 'buildup') {
+//         const buildupType = formData.buildupType;
+//         if (buildupType === 'single-shop' || buildupType === 'multiple-shops') {
+//           let totalShopAreaSqFt = 0;
+//           shops.forEach(area => totalShopAreaSqFt += parseFloat(area) || 0);
+//           totalBuildupAreaSqMeters = totalShopAreaSqFt * 0.092903;
+//           const buildupRate = CONSTRUCTION_RATES.commercial[buildupType];
+//           buildupValue = totalShopAreaSqFt * buildupRate;
+//         } else if (buildupType === 'mall') {
+//           let totalFloorAreaSqFt = 0;
+//           mallFloors.forEach(area => totalFloorAreaSqFt += parseFloat(area) || 0);
+//           totalBuildupAreaSqMeters = totalFloorAreaSqFt * 0.092903;
+//           const buildupRate = CONSTRUCTION_RATES.commercial[buildupType];
+//           buildupValue = totalFloorAreaSqFt * buildupRate;
+//         }
+//       }
+//     } else if (propertyType === 'agriculture') {
+//       additionCharges += (parseInt(formData.nalkoopCount) || 0) * NALKOOP_RATE;
+//       additionCharges += (parseInt(formData.borewellCount) || 0) * BOREWELL_RATE;
+
+//       trees.forEach(tree => {
+//         const count = parseInt(tree.count) || 0;
+//         if (TREE_RATES[tree.type]) {
+//           additionCharges += TREE_RATES[tree.type] * count;
+//         }
+//       });
+//     }
+
+//     let baseCircleRateValue = (totalPlotAreaSqMeters / 10.7639) * parseFloat(circleRateAmount);
+
+//     if (formData.doubleSideRoad) {
+//       baseCircleRateValue *= 1.10;
+//     }
+
+//     let finalCircleRateValue = baseCircleRateValue + buildupValue + additionCharges;
+//     const finalValue = Math.max(parseFloat(salePrice), finalCircleRateValue);
+
+//     let stampDuty = finalValue * STAMP_DUTY_RATE;
+//     let registrationCharge = finalValue * REGISTRATION_CHARGE_RATE;
+//     let deductionAmount = 0;
+
+//     if (formData.buyerGender === 'female') {
+//       deductionAmount = finalValue * 0.01;
+//       stampDuty -= deductionAmount;
+//     } else if (formData.otherDeduction === 'ex-serviceman') {
+//       stampDuty = 100;
+//     } else if (formData.otherDeduction === 'handicapped') {
+//       const handicappedDeductionBase = Math.min(finalValue, 500000);
+//       deductionAmount = handicappedDeductionBase * 0.25;
+//       stampDuty -= deductionAmount;
+//     } else if (formData.otherDeduction === 'other') {
+//       const otherDeductionPercent = parseFloat(formData.otherDeductionPercent) || 0;
+//       deductionAmount = finalValue * (otherDeductionPercent / 100);
+//       stampDuty -= deductionAmount;
+//     }
+
+//     stampDuty = Math.max(0, stampDuty);
+//     const finalPayableAmount = stampDuty + registrationCharge;
+
+//     return {
+//       salePrice: parseFloat(salePrice),
+//       totalPlotAreaSqMeters,
+//       totalBuildupAreaSqMeters,
+//       baseCircleRateValue,
+//       finalCircleRateValue,
+//       stampDuty,
+//       registrationCharge,
+//       finalPayableAmount,
+//       deductionAmount,
+//       propertyType,
+//       plotType
+//     };
+//   };
+
+//   // Show calculations
+//   const handleShowCalculations = () => {
+//     const results = calculateFormValues();
+//     if (results) {
+//       setCalculationResults(results);
+//       setShowCalculations(true);
+//     }
+//   };
+
+//   // Generate preview
+//   const generatePreview = () => {
+//     const results = calculateFormValues();
+//     if (!results) return;
+
+//     setCalculationResults(results);
+//     setIsPreviewMode(true);
+//   };
+
+//   // Save data to local storage and backend
+//   const handleSaveData = async () => {
+//     const results = calculateFormValues();
+//     if (!results) return;
+
+//     setIsLoading(true);
+//     setError(null);
+//     try {
+//       // Save to local storage
+//       saveDraft();
+
+//       // Prepare data for backend
+//       const dataToSave = {
+//         ...formData,
+//         sellers,
+//         buyers,
+//         witnesses,
+//         rooms,
+//         trees,
+//         shops,
+//         mallFloors,
+//         facilities,
+//         dynamicFacilities,
+//         calculations: results
+//       };
+
+//       // Create FormData for file uploads
+//       const formDataToSend = new FormData();
+//       formDataToSend.append('data', JSON.stringify(dataToSave));
+
+//       // Add uploaded files
+//       uploadedFiles.forEach((fileObj, index) => {
+//         formDataToSend.append(`files`, fileObj.file);
+//       });
+
+//       // Submit to backend
+//       const response = await axios.post('/api/sale-deed', formDataToSend, {
+//         withCredentials: true,
+//         headers: {
+//           'Content-Type': 'multipart/form-data'
+//         }
+//       });
+
+//       alert(response.data.message || 'Sale deed saved successfully!');
+//     } catch (error) {
+//       console.error('Error saving sale deed:', error);
+//       setError('Failed to save sale deed: ' + error.message);
+//       alert('Failed to save sale deed: ' + error.message);
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   // Export data as JSON
+//   const exportData = () => {
+//     const results = calculateFormValues();
+//     if (!results) return;
+
+//     const dataToSave = {
+//       ...formData,
+//       sellers,
+//       buyers,
+//       witnesses,
+//       rooms,
+//       trees,
+//       shops,
+//       mallFloors,
+//       facilities,
+//       dynamicFacilities,
+//       calculations: results
+//     };
+
+//     const dataStr = JSON.stringify(dataToSave, null, 2);
+//     const blob = new Blob([dataStr], { type: "application/json" });
+//     const url = URL.createObjectURL(blob);
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = "sale-deed-data.json";
+//     document.body.appendChild(a);
+//     a.click();
+//     document.body.removeChild(a);
+//     URL.revokeObjectURL(url);
+//     alert("Form data exported as sale-deed-data.json");
+//   };
+
+//   // Clear form
+//   const handleClearForm = () => {
+//     setFormData({
+//       documentType: '',
+//       propertyType: '',
+//       plotType: '',
+//       salePrice: '',
+//       circleRateAmount: '',
+//       areaInputType: 'total',
+//       area: '',
+//       areaUnit: 'sq_meters',
+//       propertyLength: '',
+//       propertyWidth: '',
+//       dimUnit: 'meters',
+//       buildupType: 'single-shop',
+//       numShops: 1,
+//       numFloorsMall: 1,
+//       numFloorsMulti: 1,
+//       superAreaMulti: '',
+//       coveredAreaMulti: '',
+//       nalkoopCount: 0,
+//       borewellCount: 0,
+//       state: '',
+//       district: '',
+//       tehsil: '',
+//       village: '',
+//       khasraNo: '',
+//       plotNo: '',
+//       colonyName: '',
+//       wardNo: '',
+//       streetNo: '',
+//       roadSize: '',
+//       roadUnit: 'meter',
+//       doubleSideRoad: false,
+//       directionNorth: '',
+//       directionEast: '',
+//       directionSouth: '',
+//       directionWest: '',
+//       coveredParkingCount: 0,
+//       openParkingCount: 0,
+//       deductionType: '',
+//       otherDeductionPercent: '',
+//       buyerGender: '',
+//       otherDeduction: ''
+//     });
+//     setSellers([{ name: '', relation: '', address: '', mobile: '', idType: '', idNo: '' }]);
+//     setBuyers([{ name: '', relation: '', address: '', mobile: '', idType: '', idNo: '' }]);
+//     setWitnesses([
+//       { name: '', relation: '', address: '', mobile: '' },
+//       { name: '', relation: '', address: '', mobile: '' }
+//     ]);
+//     setRooms([]);
+//     setTrees([]);
+//     setShops([]);
+//     setMallFloors([]);
+//     setFacilities([]);
+//     setDynamicFacilities([]);
+//     setShowCalculations(false);
+//     setCalculationResults(null);
+//     setUploadedFiles([]);
+//     setIsPreviewMode(false);
+//     setError(null);
+
+//     localStorage.removeItem('sale_deed_draft_v1');
+//     alert("Form cleared successfully");
+//   };
+
+//   // Preview component
+//   const PreviewComponent = () => {
+//     if (!calculationResults) return null;
+
+//     return (
+//       <div className="preview-wrap">
+//         <div className="preview-controls">
+//           <button
+//             className="btn"
+//             onClick={() => setIsPreviewMode(false)}
+//           >
+//             ✏️ Edit
+//           </button>
+//           <button
+//             className="btn save"
+//             onClick={handleSaveData}
+//             disabled={isLoading}
+//           >
+//             {isLoading ? '⏳ Saving...' : '💾 Save'}
+//           </button>
+//           <button
+//             className="btn"
+//             onClick={() => window.print()}
+//           >
+//             🖨️ Print
+//           </button>
+//         </div>
+
+//         <div className="preview-page">
+//           <div className="watermark-layer">
+//             {Array.from({ length: 20 }, (_, i) => (
+//               <div key={i} className="wm">DRAFT</div>
+//             ))}
+//           </div>
+
+//           <div className="preview-body">
+//             <h2 style={{ textAlign: 'center', color: 'var(--brand)', marginBottom: '20px' }}>
+//               Sale Deed Document
+//             </h2>
+
+//             <div className="preview-section">
+//               <h3>Property Information</h3>
+//               <p><strong>Document Type:</strong> {formData.documentType}</p>
+//               <p><strong>Property Type:</strong> {formData.propertyType}</p>
+//               <p><strong>Plot Type:</strong> {formData.plotType}</p>
+//               <p><strong>Sale Price:</strong> ₹{formData.salePrice?.toLocaleString()}</p>
+//               <p><strong>Circle Rate:</strong> ₹{formData.circleRateAmount?.toLocaleString()}</p>
+//             </div>
+
+//             <div className="preview-section">
+//               <h3>Property Location</h3>
+//               <p><strong>State:</strong> {formData.state}</p>
+//               <p><strong>District:</strong> {formData.district}</p>
+//               <p><strong>Tehsil:</strong> {formData.tehsil}</p>
+//               <p><strong>Village:</strong> {formData.village}</p>
+//               {formData.khasraNo && <p><strong>Khasra No:</strong> {formData.khasraNo}</p>}
+//               {formData.plotNo && <p><strong>Plot No:</strong> {formData.plotNo}</p>}
+//             </div>
+
+//             {sellers.length > 0 && (
+//               <div className="preview-section">
+//                 <h3>Sellers</h3>
+//                 {sellers.map((seller, index) => (
+//                   <div key={index} className="preview-person">
+//                     <p><strong>Name:</strong> {seller.name}</p>
+//                     <p><strong>Relation:</strong> {seller.relation}</p>
+//                     <p><strong>Address:</strong> {seller.address}</p>
+//                     <p><strong>Mobile:</strong> {seller.mobile}</p>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             {buyers.length > 0 && (
+//               <div className="preview-section">
+//                 <h3>Buyers</h3>
+//                 {buyers.map((buyer, index) => (
+//                   <div key={index} className="preview-person">
+//                     <p><strong>Name:</strong> {buyer.name}</p>
+//                     <p><strong>Relation:</strong> {buyer.relation}</p>
+//                     <p><strong>Address:</strong> {buyer.address}</p>
+//                     <p><strong>Mobile:</strong> {buyer.mobile}</p>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             <div className="preview-section">
+//               <h3>Financial Calculations</h3>
+//               <p><strong>Sale Price:</strong> ₹{calculationResults.salePrice?.toLocaleString()}</p>
+//               <p><strong>Total Plot Area:</strong> {calculationResults.totalPlotAreaSqMeters?.toFixed(2)} sq meters</p>
+//               <p><strong>Base Circle Rate Value:</strong> ₹{calculationResults.baseCircleRateValue?.toLocaleString()}</p>
+//               <p><strong>Final Circle Rate Value:</strong> ₹{calculationResults.finalCircleRateValue?.toLocaleString()}</p>
+//               <p><strong>Stamp Duty:</strong> ₹{calculationResults.stampDuty?.toLocaleString()}</p>
+//               <p><strong>Registration Charge:</strong> ₹{calculationResults.registrationCharge?.toLocaleString()}</p>
+//               <p><strong>Final Payable Amount:</strong> ₹{calculationResults.finalPayableAmount?.toLocaleString()}</p>
+//             </div>
+
+//             <div className="preview-signatures">
+//               <div className="signature-section">
+//                 <div className="signature-line"></div>
+//                 <p>Seller Signature</p>
+//               </div>
+//               <div className="signature-section">
+//                 <div className="signature-line"></div>
+//                 <p>Buyer Signature</p>
+//               </div>
+//               <div className="signature-section">
+//                 <div className="signature-line"></div>
+//                 <p>Witness 1 Signature</p>
+//               </div>
+//               <div className="signature-section">
+//                 <div className="signature-line"></div>
+//                 <p>Witness 2 Signature</p>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   if (isPreviewMode) {
+//     return <PreviewComponent />;
+//   }
+
+//   return (
+//     <div className="container">
+//       <div className="header">
+//         <div>
+//           <div className="title">Sale Deed Form Generator</div>
+//           <div className="small">Complete property sale deed with calculations, file uploads, and preview generation.</div>
+//         </div>
+//         <div className="controls">
+//           <button className="btn save" onClick={saveDraft}>💾 Save Draft</button>
+//           <button className="btn preview" onClick={generatePreview}>🔍 Preview</button>
+//           <button className="btn submit" onClick={handleSaveData} disabled={isLoading}>
+//             {isLoading ? '⏳ Saving...' : '✅ Submit'}
+//           </button>
+//         </div>
+//       </div>
+
+//       {error && (
+//         <div className="error-message">
+//           {error}
+//         </div>
+//       )}
+
+//       <div className="professional-form">
+//         <div className="text-center mb-6">
+//           <h1 className="text-3xl font-bold text-gray-900 mb-2">Sale Deed Form</h1>
+//           <p className="text-gray-600">Professional Property Transaction Documentation</p>
+//         </div>
+
+//         <form className="space-y-3">
+//           {/* Property Information Section */}
+//           <div className="form-section">
+//             <h3>Property Information</h3>
+//             <div className="professional-grid cols-6">
+//               <div>
+//                 <label>Document Type *</label>
+//                 <select
+//                   value={formData.documentType}
+//                   onChange={(e) => handleInputChange('documentType', e.target.value)}
+//                   required
+//                 >
+//                   <option value="">Select Deed Type</option>
+//                   <option value="sale-deed">Sale Deed</option>
+//                   <option value="gift-deed">Gift Deed</option>
+//                   <option value="partition-deed">Partition Deed</option>
+//                   <option value="exchange-deed">Exchange Deed</option>
+//                   <option value="other-deed">Others</option>
+//                 </select>
+//               </div>
+
+//               <div>
+//                 <label>Property Type *</label>
+//                 <select
+//                   value={formData.propertyType}
+//                   onChange={(e) => handleInputChange('propertyType', e.target.value)}
+//                   required
+//                 >
+//                   <option value="">Select Type</option>
+//                   <option value="residential">Residential</option>
+//                   <option value="agriculture">Agriculture</option>
+//                   <option value="commercial">Commercial</option>
+//                   <option value="industrial">Industrial</option>
+//                 </select>
+//               </div>
+
+//               <div>
+//                 <label>Plot Type *</label>
+//                 <select
+//                   value={formData.plotType}
+//                   onChange={(e) => handleInputChange('plotType', e.target.value)}
+//                   required
+//                 >
+//                   <option value="">Select Plot Type</option>
+//                   <option value="vacant">Vacant Plot/Land</option>
+//                   <option value="buildup">Buildup</option>
+//                   <option value="flat">Flat/Floor</option>
+//                   <option value="multistory">Multistory</option>
+//                 </select>
+//               </div>
+
+//               <div>
+//                 <label>Sale Consideration Price (INR) *</label>
+//                 <input
+//                   type="number"
+//                   value={formData.salePrice}
+//                   onChange={(e) => handleInputChange('salePrice', e.target.value)}
+//                   min="1"
+//                   step="any"
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>Circle Rate Amount (per unit area) (INR) *</label>
+//                 <input
+//                   type="number"
+//                   value={formData.circleRateAmount}
+//                   onChange={(e) => handleInputChange('circleRateAmount', e.target.value)}
+//                   min="1"
+//                   step="any"
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>Property Area Input Type</label>
+//                 <select
+//                   value={formData.areaInputType}
+//                   onChange={(e) => handleInputChange('areaInputType', e.target.value)}
+//                 >
+//                   <option value="total">Total Area</option>
+//                   <option value="dimensions">Length & Width</option>
+//                 </select>
+//               </div>
+//             </div>
+
+//             {formData.areaInputType === 'total' && (
+//               <div className="professional-grid cols-3">
+//                 <div>
+//                   <label>Property Area *</label>
+//                   <input
+//                     type="number"
+//                     value={formData.area}
+//                     onChange={(e) => handleInputChange('area', e.target.value)}
+//                     min="1"
+//                     step="any"
+//                     placeholder="Enter Property Area"
+//                     required
+//                   />
+//                 </div>
+//                 <div>
+//                   <label>Area Unit</label>
+//                   <select
+//                     value={formData.areaUnit}
+//                     onChange={(e) => handleInputChange('areaUnit', e.target.value)}
+//                   >
+//                     <option value="sq_meters">Sq. Meters</option>
+//                     <option value="sq_yards">Sq. Yards</option>
+//                     <option value="sq_feet">Sq. Feet</option>
+//                     <option value="acre">Acre</option>
+//                     <option value="hectare">Hectare</option>
+//                     <option value="bigha">Bigha</option>
+//                     <option value="kanal">Kanal</option>
+//                     <option value="marla">Marla</option>
+//                   </select>
+//                 </div>
+//               </div>
+//             )}
+
+//             {formData.areaInputType === 'dimensions' && (
+//               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Length
+//                   </label>
+//                   <input
+//                     type="number"
+//                     value={formData.propertyLength}
+//                     onChange={(e) => handleInputChange('propertyLength', e.target.value)}
+//                     min="1"
+//                     step="any"
+//                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     required
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Width
+//                   </label>
+//                   <input
+//                     type="number"
+//                     value={formData.propertyWidth}
+//                     onChange={(e) => handleInputChange('propertyWidth', e.target.value)}
+//                     min="1"
+//                     step="any"
+//                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     required
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Unit
+//                   </label>
+//                   <select
+//                     value={formData.dimUnit}
+//                     onChange={(e) => handleInputChange('dimUnit', e.target.value)}
+//                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                   >
+//                     <option value="meters">Meters</option>
+//                     <option value="feet">Feet</option>
+//                   </select>
+//                 </div>
+//               </div>
+//             )}
+
+//             {formData.propertyType === 'residential' && formData.plotType === 'flat' && (
+//               <div className="mt-6 border border-gray-200 rounded-lg p-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Room Details</h4>
+//                 <p className="text-sm text-gray-600 mb-4">Add rooms and their dimensions. These are used to calculate the built-up area.</p>
+
+//                 {rooms.map((room, index) => (
+//                   <div key={index} className="flex flex-wrap items-center gap-4 mb-4 p-3 border border-gray-200 rounded">
+//                     <div className="flex-1 min-w-[200px]">
+//                       <label className="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+//                       <select
+//                         value={room.type}
+//                         onChange={(e) => updateRoom(index, 'type', e.target.value)}
+//                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+//                       >
+//                         {ROOM_TYPES.map(type => (
+//                           <option key={type} value={type.toLowerCase().replace(' ', '-')}>
+//                             {type}
+//                           </option>
+//                         ))}
+//                         <option value="other">Other</option>
+//                       </select>
+//                     </div>
+//                     <div className="flex-1 min-w-[150px]">
+//                       <label className="block text-sm font-medium text-gray-700 mb-1">Length (Ft):</label>
+//                       <input
+//                         type="number"
+//                         value={room.length}
+//                         onChange={(e) => updateRoom(index, 'length', e.target.value)}
+//                         min="1"
+//                         step="any"
+//                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+//                         required
+//                       />
+//                     </div>
+//                     <div className="flex-1 min-w-[150px]">
+//                       <label className="block text-sm font-medium text-gray-700 mb-1">Width (Ft):</label>
+//                       <input
+//                         type="number"
+//                         value={room.width}
+//                         onChange={(e) => updateRoom(index, 'width', e.target.value)}
+//                         min="1"
+//                         step="any"
+//                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+//                         required
+//                       />
+//                     </div>
+//                     <button
+//                       type="button"
+//                       onClick={() => removeRoom(index)}
+//                       className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+//                     >
+//                       Remove
+//                     </button>
+//                   </div>
+//                 ))}
+
+//                 <button
+//                   type="button"
+//                   onClick={addRoom}
+//                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+//                 >
+//                   Add Room
+//                 </button>
+//               </div>
+//             )}
+
+//             {formData.propertyType === 'agriculture' && (
+//               <div className="mt-6 border border-gray-200 rounded-lg p-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Agriculture Land Additions</h4>
+
+//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Nalkoop Count
+//                     </label>
+//                     <input
+//                       type="number"
+//                       value={formData.nalkoopCount}
+//                       onChange={(e) => handleInputChange('nalkoopCount', e.target.value)}
+//                       min="0"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                     {formData.nalkoopCount > 0 && (
+//                       <div className="text-sm text-gray-600 mt-1">
+//                         Amount: ₹{(parseInt(formData.nalkoopCount) * NALKOOP_RATE).toLocaleString()}
+//                       </div>
+//                     )}
+//                   </div>
+
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Borewell Count
+//                     </label>
+//                     <input
+//                       type="number"
+//                       value={formData.borewellCount}
+//                       onChange={(e) => handleInputChange('borewellCount', e.target.value)}
+//                       min="0"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                     {formData.borewellCount > 0 && (
+//                       <div className="text-sm text-gray-600 mt-1">
+//                         Amount: ₹{(parseInt(formData.borewellCount) * BOREWELL_RATE).toLocaleString()}
+//                       </div>
+//                     )}
+//                   </div>
+//                 </div>
+
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">Trees</label>
+
+//                   {trees.map((tree, index) => (
+//                     <div key={index} className="flex flex-wrap items-center gap-4 mb-4 p-3 border border-gray-200 rounded">
+//                       <div className="flex-1 min-w-[200px]">
+//                         <label className="block text-sm font-medium text-gray-700 mb-1">Tree Type:</label>
+//                         <select
+//                           value={tree.type}
+//                           onChange={(e) => updateTree(index, 'type', e.target.value)}
+//                           className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+//                         >
+//                           {Object.keys(TREE_RATES).map(treeType => (
+//                             <option key={treeType} value={treeType}>
+//                               {treeType.charAt(0).toUpperCase() + treeType.slice(1)}
+//                             </option>
+//                           ))}
+//                           <option value="other">Other</option>
+//                         </select>
+//                       </div>
+//                       <div className="flex-1 min-w-[150px]">
+//                         <label className="block text-sm font-medium text-gray-700 mb-1">Count:</label>
+//                         <input
+//                           type="number"
+//                           value={tree.count}
+//                           onChange={(e) => updateTree(index, 'count', e.target.value)}
+//                           min="1"
+//                           className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+//                           required
+//                         />
+//                       </div>
+//                       <button
+//                         type="button"
+//                         onClick={() => removeTree(index)}
+//                         className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+//                       >
+//                         Remove
+//                       </button>
+//                     </div>
+//                   ))}
+
+//                   <button
+//                     type="button"
+//                     onClick={addTree}
+//                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+//                   >
+//                     Add Tree
+//                   </button>
+
+//                   {trees.length > 0 && (
+//                     <div className="mt-4 text-sm text-gray-600">
+//                       Total Trees Amount: ₹{trees.reduce((total, tree) => {
+//                         const count = parseInt(tree.count) || 0;
+//                         const rate = TREE_RATES[tree.type] || 0;
+//                         return total + (count * rate);
+//                       }, 0).toLocaleString()}
+//                     </div>
+//                   )}
+//                 </div>
+//               </div>
+//             )}
+
+//             {formData.propertyType === 'residential' && formData.plotType === 'multistory' && (
+//               <div className="mt-6 border border-gray-200 rounded-lg p-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Multistory Building Details</h4>
+
+//                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Number of Floors
+//                     </label>
+//                     <input
+//                       type="number"
+//                       value={formData.numFloorsMulti}
+//                       onChange={(e) => handleInputChange('numFloorsMulti', e.target.value)}
+//                       min="1"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Super Area (Sq. Ft.)
+//                     </label>
+//                     <input
+//                       type="number"
+//                       value={formData.superAreaMulti}
+//                       onChange={(e) => handleInputChange('superAreaMulti', e.target.value)}
+//                       min="0"
+//                       step="any"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Covered Area (Sq. Ft.)
+//                     </label>
+//                     <input
+//                       type="number"
+//                       value={formData.coveredAreaMulti}
+//                       onChange={(e) => handleInputChange('coveredAreaMulti', e.target.value)}
+//                       min="0"
+//                       step="any"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+//                 </div>
+//               </div>
+//             )}
+
+//             {formData.propertyType === 'commercial' && formData.plotType === 'buildup' && (
+//               <div className="mt-6 border border-gray-200 rounded-lg p-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Buildup Details</h4>
+
+//                 <div className="mb-4">
+//                   <label className="block text-sm font-medium text-gray-700 mb-2">
+//                     Buildup Type
+//                   </label>
+//                   <select
+//                     value={formData.buildupType}
+//                     onChange={(e) => handleInputChange('buildupType', e.target.value)}
+//                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                   >
+//                     <option value="single-shop">Single Shop</option>
+//                     <option value="multiple-shops">Multiple Shops</option>
+//                     <option value="mall">Mall</option>
+//                   </select>
+//                 </div>
+
+//                 {(formData.buildupType === 'single-shop' || formData.buildupType === 'multiple-shops') && (
+//                   <div>
+//                     <div className="mb-4">
+//                       <label className="block text-sm font-medium text-gray-700 mb-2">
+//                         Number of Shops
+//                       </label>
+//                       <input
+//                         type="number"
+//                         value={formData.numShops}
+//                         onChange={(e) => handleInputChange('numShops', e.target.value)}
+//                         min="1"
+//                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                       />
+//                     </div>
+
+//                     <div className="space-y-4">
+//                       {Array.from({ length: parseInt(formData.numShops) || 1 }, (_, index) => (
+//                         <div key={index} className="border border-gray-200 rounded-lg p-4">
+//                           <h5 className="text-md font-medium text-gray-700 mb-2">Shop {index + 1}</h5>
+//                           <div>
+//                             <label className="block text-sm font-medium text-gray-700 mb-2">
+//                               Shop Area (Sq.Ft.)
+//                             </label>
+//                             <input
+//                               type="number"
+//                               value={shops[index] || ''}
+//                               onChange={(e) => {
+//                                 const newShops = [...shops];
+//                                 newShops[index] = e.target.value;
+//                                 setShops(newShops);
+//                               }}
+//                               min="1"
+//                               step="any"
+//                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                               required
+//                             />
+//                           </div>
+//                         </div>
+//                       ))}
+//                     </div>
+//                   </div>
+//                 )}
+
+//                 {formData.buildupType === 'mall' && (
+//                   <div>
+//                     <div className="mb-4">
+//                       <label className="block text-sm font-medium text-gray-700 mb-2">
+//                         Number of Floors
+//                       </label>
+//                       <input
+//                         type="number"
+//                         value={formData.numFloorsMall}
+//                         onChange={(e) => handleInputChange('numFloorsMall', e.target.value)}
+//                         min="1"
+//                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                       />
+//                     </div>
+
+//                     <div className="space-y-4">
+//                       {Array.from({ length: parseInt(formData.numFloorsMall) || 1 }, (_, index) => (
+//                         <div key={index} className="border border-gray-200 rounded-lg p-4">
+//                           <h5 className="text-md font-medium text-gray-700 mb-2">Floor {index + 1}</h5>
+//                           <div>
+//                             <label className="block text-sm font-medium text-gray-700 mb-2">
+//                               Floor Area (Sq.Ft.)
+//                             </label>
+//                             <input
+//                               type="number"
+//                               value={mallFloors[index] || ''}
+//                               onChange={(e) => {
+//                                 const newMallFloors = [...mallFloors];
+//                                 newMallFloors[index] = e.target.value;
+//                                 setMallFloors(newMallFloors);
+//                               }}
+//                               min="1"
+//                               step="any"
+//                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                               required
+//                             />
+//                           </div>
+//                         </div>
+//                       ))}
+//                     </div>
+//                   </div>
+//                 )}
+//               </div>
+//             )}
+
+//             {(formData.propertyType === 'residential' && (formData.plotType === 'flat' || formData.plotType === 'multistory')) && (
+//               <div className="mt-6 border border-gray-200 rounded-lg p-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Common Facilities</h4>
+//                 <p className="text-sm text-gray-600 mb-4">These charges will increase the <strong>Circle Rate Value</strong>.</p>
+
+//                 <div className="space-y-4">
+//                   <div className="flex items-center">
+//                     <input
+//                       type="checkbox"
+//                       id="select-all-facilities"
+//                       className="mr-2"
+//                       onChange={(e) => {
+//                         const isChecked = e.target.checked;
+//                         const facilityCheckboxes = document.querySelectorAll('input[name="facility"]');
+//                         facilityCheckboxes.forEach(cb => {
+//                           if (cb.id !== 'others') cb.checked = isChecked;
+//                         });
+//                       }}
+//                     />
+//                     <label htmlFor="select-all-facilities" className="text-sm font-medium text-gray-700">
+//                       Select/Deselect All
+//                     </label>
+//                   </div>
+
+//                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+//                     {[
+//                       { value: 'swimming_pool', label: 'Swimming Pool', charge: 1 },
+//                       { value: 'gym', label: 'Gymnasium', charge: 1 },
+//                       { value: 'club_house', label: 'Club House', charge: 1 },
+//                       { value: 'garden', label: 'Terrace Garden', charge: 1 },
+//                       { value: 'security_guard', label: 'Security Guard', charge: 1 },
+//                       { value: 'park', label: 'Park', charge: 1 },
+//                       { value: 'lift', label: 'Lift', charge: 1 }
+//                     ].map(facility => (
+//                       <label key={facility.value} className="flex items-center">
+//                         <input
+//                           type="checkbox"
+//                           name="facility"
+//                           value={facility.value}
+//                           data-charge={facility.charge}
+//                           className="mr-2"
+//                         />
+//                         {facility.label}
+//                       </label>
+//                     ))}
+//                   </div>
+
+//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                     <div>
+//                       <label className="block text-sm font-medium text-gray-700 mb-2">
+//                         Covered Parking Count
+//                       </label>
+//                       <input
+//                         type="number"
+//                         value={formData.coveredParkingCount}
+//                         onChange={(e) => handleInputChange('coveredParkingCount', e.target.value)}
+//                         min="0"
+//                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                       />
+//                     </div>
+
+//                     <div>
+//                       <label className="block text-sm font-medium text-gray-700 mb-2">
+//                         Open Parking Count
+//                       </label>
+//                       <input
+//                         type="number"
+//                         value={formData.openParkingCount}
+//                         onChange={(e) => handleInputChange('openParkingCount', e.target.value)}
+//                         min="0"
+//                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                       />
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+
+//           <div className="form-section">
+//             <h3>Seller Details</h3>
+
+//             {sellers.map((seller, index) => (
+//               <div key={index} className="form-section">
+//                 <div className="flex justify-between items-center mb-3">
+//                   <h4 className="text-lg font-medium text-gray-700">Seller {index + 1}</h4>
+//                   {sellers.length > 1 && (
+//                     <button
+//                       type="button"
+//                       onClick={() => removeSeller(index)}
+//                       className="remove-btn"
+//                     >
+//                       Remove
+//                     </button>
+//                   )}
+//                 </div>
+
+//                 <div className="professional-grid cols-4">
+//                   <div>
+//                     <label>Name *</label>
+//                     <input
+//                       type="text"
+//                       value={seller.name}
+//                       onChange={(e) => updateSeller(index, 'name', e.target.value)}
+//                       required
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Son of / Husband of</label>
+//                     <input
+//                       type="text"
+//                       value={seller.relation}
+//                       onChange={(e) => updateSeller(index, 'relation', e.target.value)}
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Mobile No.</label>
+//                     <input
+//                       type="text"
+//                       value={seller.mobile}
+//                       onChange={(e) => updateSeller(index, 'mobile', e.target.value)}
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Address</label>
+//                     <textarea
+//                       value={seller.address}
+//                       onChange={(e) => updateSeller(index, 'address', e.target.value)}
+//                       rows="2"
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>ID Card Type</label>
+//                     <select
+//                       value={seller.idType}
+//                       onChange={(e) => updateSeller(index, 'idType', e.target.value)}
+//                     >
+//                       <option value="">Select ID Type</option>
+//                       <option value="aadhaar">Aadhaar Card</option>
+//                       <option value="pan">PAN Card</option>
+//                       <option value="passport">Passport</option>
+//                       <option value="voter-id">Voter ID</option>
+//                     </select>
+//                   </div>
+
+//                   <div>
+//                     <label>ID Card No.</label>
+//                     <input
+//                       type="text"
+//                       value={seller.idNo}
+//                       onChange={(e) => updateSeller(index, 'idNo', e.target.value)}
+//                     />
+//                   </div>
+//                 </div>
+//               </div>
+//             ))}
+
+//             <button
+//               type="button"
+//               onClick={addSeller}
+//               className="btn add-btn"
+//             >
+//               + Add More Sellers
+//             </button>
+//           </div>
+
+//           <div className="form-section">
+//             <h3>Buyer Details</h3>
+
+//             {buyers.map((buyer, index) => (
+//               <div key={index} className="form-section">
+//                 <div className="flex justify-between items-center mb-3">
+//                   <h4 className="text-lg font-medium text-gray-700">Buyer {index + 1}</h4>
+//                   {buyers.length > 1 && (
+//                     <button
+//                       type="button"
+//                       onClick={() => removeBuyer(index)}
+//                       className="remove-btn"
+//                     >
+//                       Remove
+//                     </button>
+//                   )}
+//                 </div>
+
+//                 <div className="professional-grid cols-4">
+//                   <div>
+//                     <label>Name *</label>
+//                     <input
+//                       type="text"
+//                       value={buyer.name}
+//                       onChange={(e) => updateBuyer(index, 'name', e.target.value)}
+//                       required
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Son of / Husband of</label>
+//                     <input
+//                       type="text"
+//                       value={buyer.relation}
+//                       onChange={(e) => updateBuyer(index, 'relation', e.target.value)}
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Mobile No.</label>
+//                     <input
+//                       type="text"
+//                       value={buyer.mobile}
+//                       onChange={(e) => updateBuyer(index, 'mobile', e.target.value)}
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>Address</label>
+//                     <textarea
+//                       value={buyer.address}
+//                       onChange={(e) => updateBuyer(index, 'address', e.target.value)}
+//                       rows="2"
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label>ID Card Type</label>
+//                     <select
+//                       value={buyer.idType}
+//                       onChange={(e) => updateBuyer(index, 'idType', e.target.value)}
+//                     >
+//                       <option value="">Select ID Type</option>
+//                       <option value="aadhaar">Aadhaar Card</option>
+//                       <option value="pan">PAN Card</option>
+//                       <option value="passport">Passport</option>
+//                       <option value="voter-id">Voter ID</option>
+//                     </select>
+//                   </div>
+
+//                   <div>
+//                     <label>ID Card No.</label>
+//                     <input
+//                       type="text"
+//                       value={buyer.idNo}
+//                       onChange={(e) => updateBuyer(index, 'idNo', e.target.value)}
+//                     />
+//                   </div>
+//                 </div>
+//               </div>
+//             ))}
+
+//             <button
+//               type="button"
+//               onClick={addBuyer}
+//               className="btn add-btn"
+//             >
+//               + Add More Buyers
+//             </button>
+//           </div>
+
+//           <div className="border border-gray-200 rounded-lg p-6">
+//             <h3 className="text-xl font-medium text-gray-700 border-b-2 border-blue-500 pb-2 mb-6">
+//               Party Details
+//             </h3>
+
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700 mb-2">
+//                   First Party (Seller):
+//                 </label>
+//                 <div className="font-bold text-blue-600">
+//                   {sellers.filter(s => s.name.trim()).map(seller =>
+//                     <div key={seller.name}>{seller.name} (Hereinafter Called The First Party)</div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700 mb-2">
+//                   Second Party (Buyer):
+//                 </label>
+//                 <div className="font-bold text-green-600">
+//                   {buyers.filter(b => b.name.trim()).map(buyer =>
+//                     <div key={buyer.name}>{buyer.name} (Hereinafter Called The Second Party)</div>
+//                   )}
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+
+//           <div className="border border-gray-200 rounded-lg p-6">
+//             <h3 className="text-xl font-medium text-gray-700 border-b-2 border-blue-500 pb-2 mb-6">
+//               Witness Details
+//             </h3>
+
+//             {witnesses.map((witness, index) => (
+//               <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+//                 <h4 className="text-lg font-medium text-gray-700 mb-4">Witness {index + 1}</h4>
+
+//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Name *
+//                     </label>
+//                     <input
+//                       type="text"
+//                       value={witness.name}
+//                       onChange={(e) => {
+//                         const newWitnesses = [...witnesses];
+//                         newWitnesses[index].name = e.target.value;
+//                         setWitnesses(newWitnesses);
+//                       }}
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                       required
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Son of / Husband of
+//                     </label>
+//                     <input
+//                       type="text"
+//                       value={witness.relation}
+//                       onChange={(e) => {
+//                         const newWitnesses = [...witnesses];
+//                         newWitnesses[index].relation = e.target.value;
+//                         setWitnesses(newWitnesses);
+//                       }}
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+
+//                   <div className="md:col-span-2">
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Address
+//                     </label>
+//                     <textarea
+//                       value={witness.address}
+//                       onChange={(e) => {
+//                         const newWitnesses = [...witnesses];
+//                         newWitnesses[index].address = e.target.value;
+//                         setWitnesses(newWitnesses);
+//                       }}
+//                       rows="2"
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700 mb-2">
+//                       Mobile No.
+//                     </label>
+//                     <input
+//                       type="text"
+//                       value={witness.mobile}
+//                       onChange={(e) => {
+//                         const newWitnesses = [...witnesses];
+//                         newWitnesses[index].mobile = e.target.value;
+//                         setWitnesses(newWitnesses);
+//                       }}
+//                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                     />
+//                   </div>
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+
+//           <div className="form-section">
+//             <h3>Property Description</h3>
+
+//             <div className="professional-grid cols-4">
+//               <div>
+//                 <label>State *</label>
+//                 <input
+//                   type="text"
+//                   value={formData.state}
+//                   onChange={(e) => handleInputChange('state', e.target.value)}
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>District *</label>
+//                 <input
+//                   type="text"
+//                   value={formData.district}
+//                   onChange={(e) => handleInputChange('district', e.target.value)}
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>Tehsil *</label>
+//                 <input
+//                   type="text"
+//                   value={formData.tehsil}
+//                   onChange={(e) => handleInputChange('tehsil', e.target.value)}
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>Village / Locality *</label>
+//                 <input
+//                   type="text"
+//                   value={formData.village}
+//                   onChange={(e) => handleInputChange('village', e.target.value)}
+//                   required
+//                 />
+//               </div>
+
+//               <div>
+//                 <label>Khasra/Survey No.</label>
+//                 <input
+//                   type="text"
+//                   value={formData.khasraNo}
+//                   onChange={(e) => handleInputChange('k

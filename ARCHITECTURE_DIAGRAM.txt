@@ -1,0 +1,197 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    MULTILINGUAL FORM ARCHITECTURE                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERFACE                                  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  MultilingualForm Component                                          │  │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐        │  │
+│  │  │ Language Toggle│  │ Hindi Toggle   │  │ Submit Button  │        │  │
+│  │  │  EN ↔ HI      │  │  ON/OFF        │  │                │        │  │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘        │  │
+│  │                                                                      │  │
+│  │  ┌────────────────────────────────────────────────────────────┐    │  │
+│  │  │  Form Fields                                               │    │  │
+│  │  │  • Name (HindiInput)                                       │    │  │
+│  │  │  • Father's Name (HindiInput)                              │    │  │
+│  │  │  • Mother's Name (HindiInput)                              │    │  │
+│  │  │  • Address (HindiTextarea)                                 │    │  │
+│  │  │  • City (HindiInput)                                       │    │  │
+│  │  │  • State (HindiInput)                                      │    │  │
+│  │  │  • Pincode (Regular Input)                                 │    │  │
+│  │  │  • Notes (HindiTextarea)                                   │    │  │
+│  │  └────────────────────────────────────────────────────────────┘    │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           STATE MANAGEMENT                                   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  React useState Hook                                                 │  │
+│  │                                                                      │  │
+│  │  const [formData, setFormData] = useState({                         │  │
+│  │    name: '',                                                         │  │
+│  │    fatherName: '',                                                   │  │
+│  │    motherName: '',                                                   │  │
+│  │    address: '',                                                      │  │
+│  │    city: '',                                                         │  │
+│  │    state: '',                                                        │  │
+│  │    pincode: '',                                                      │  │
+│  │    notes: ''                                                         │  │
+│  │  });                                                                 │  │
+│  │                                                                      │  │
+│  │  const [hindiEnabled, setHindiEnabled] = useState(false);           │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    ▼                                   ▼
+┌──────────────────────────────────┐  ┌──────────────────────────────────┐
+│   HINDI TRANSLITERATION          │  │   INTERNATIONALIZATION (i18n)    │
+│                                  │  │                                  │
+│  ┌────────────────────────────┐ │  │  ┌────────────────────────────┐ │
+│  │ hindiTransliteration.js    │ │  │  │ i18n/config.js             │ │
+│  │                            │ │  │  │                            │ │
+│  │ • Consonant mappings       │ │  │  │ • react-i18next            │ │
+│  │ • Vowel mappings           │ │  │  │ • Language detector        │ │
+│  │ • Matra mappings           │ │  │  │ • Translation resources    │ │
+│  │ • transliterateToHindi()   │ │  │  │   - English (en)           │ │
+│  │                            │ │  │  │   - Hindi (hi)             │ │
+│  └────────────────────────────┘ │  │  └────────────────────────────┘ │
+│                                  │  │                                  │
+│  Input: "kamal"                  │  │  t('name')                       │
+│  Output: "कमल"                   │  │  → "Name" (en)                   │
+│                                  │  │  → "नाम" (hi)                    │
+└──────────────────────────────────┘  └──────────────────────────────────┘
+                    │                                   │
+                    └─────────────────┬─────────────────┘
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          COMPONENT LAYER                                     │
+│                                                                              │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐               │
+│  │  HindiInput.jsx          │  │  HindiTextarea.jsx       │               │
+│  │                          │  │                          │               │
+│  │  • Real-time conversion  │  │  • Real-time conversion  │               │
+│  │  • Cursor management     │  │  • Cursor management     │               │
+│  │  • Word-by-word typing   │  │  • Multi-line support    │               │
+│  │  • Matra handling        │  │  • Matra handling        │               │
+│  └──────────────────────────┘  └──────────────────────────┘               │
+│                                                                              │
+│  ┌──────────────────────────┐                                               │
+│  │  LanguageToggle.jsx      │                                               │
+│  │                          │                                               │
+│  │  • Visual toggle switch  │                                               │
+│  │  • EN ↔ HI indicator     │                                               │
+│  └──────────────────────────┘                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DATA FLOW                                           │
+│                                                                              │
+│  User Types: "kamal"                                                         │
+│       │                                                                      │
+│       ▼                                                                      │
+│  HindiInput detects change                                                   │
+│       │                                                                      │
+│       ▼                                                                      │
+│  If hindiEnabled = true                                                      │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Call transliterateToHindi("kamal")                                          │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Returns: "कमल"                                                              │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Update state: setFormData({ ...prev, name: "कमल" })                        │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Re-render with Hindi text                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FORM SUBMISSION                                     │
+│                                                                              │
+│  handleSubmit(formData)                                                      │
+│       │                                                                      │
+│       ▼                                                                      │
+│  {                                                                           │
+│    name: "रितुराज",                                                          │
+│    fatherName: "राजेश",                                                      │
+│    motherName: "सुनीता",                                                     │
+│    address: "घर नंबर १२३",                                                   │
+│    city: "देलही",                                                            │
+│    state: "देलही",                                                           │
+│    pincode: "110001",                                                        │
+│    notes: "अतिरिक्त जानकारी"                                                 │
+│  }                                                                           │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Send to Backend API (UTF-8 encoded)                                         │
+│       │                                                                      │
+│       ▼                                                                      │
+│  Store in Database                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          KEY FEATURES                                        ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  ✅ Controlled Components - All inputs use useState                          ║
+║  ✅ Hindi Typing - Phonetic transliteration (English → Hindi)                ║
+║  ✅ Proper Matras - Vowel signs work correctly (ा, ि, ी, ु, ू, े, ै, ो, ौ)  ║
+║  ✅ i18n Support - Dynamic UI language switching                             ║
+║  ✅ Real-time Conversion - Converts as you type                              ║
+║  ✅ Cursor Management - Maintains cursor position                            ║
+║  ✅ UTF-8 Encoding - Database ready                                          ║
+║  ✅ Mobile Friendly - Responsive design                                      ║
+║  ✅ Reusable - Easy to integrate                                             ║
+║  ✅ Production Ready - Clean, optimized code                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          FILE STRUCTURE                                      ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  src/                                                                        ║
+║  ├── i18n/                                                                   ║
+║  │   └── config.js                    ← i18n configuration                  ║
+║  ├── components/                                                             ║
+║  │   ├── MultilingualForm/                                                   ║
+║  │   │   ├── MultilingualForm.jsx     ← Main form component                 ║
+║  │   │   └── StandaloneExample.jsx    ← Self-contained example              ║
+║  │   └── ui/                                                                 ║
+║  │       ├── HindiInput.jsx            ← Hindi input component               ║
+║  │       ├── HindiTextarea.jsx         ← Hindi textarea component            ║
+║  │       └── LanguageToggle.jsx        ← Language toggle button              ║
+║  ├── utils/                                                                  ║
+║  │   └── hindiTransliteration.js      ← Transliteration engine              ║
+║  └── app/                                                                    ║
+║      └── multilingual-form-demo/                                             ║
+║          └── page.jsx                  ← Demo page                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          USAGE EXAMPLE                                       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  "use client";                                                               ║
+║                                                                              ║
+║  import MultilingualForm from '@/components/MultilingualForm/MultilingualForm';
+║  import '@/i18n/config';                                                     ║
+║                                                                              ║
+║  export default function MyPage() {                                          ║
+║    const handleSubmit = (formData) => {                                     ║
+║      console.log('Form Data:', formData);                                   ║
+║      // Send to backend API                                                 ║
+║    };                                                                        ║
+║                                                                              ║
+║    return <MultilingualForm onSubmit={handleSubmit} />;                     ║
+║  }                                                                           ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝

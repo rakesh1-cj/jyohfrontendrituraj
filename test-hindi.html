@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hindi Typing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            margin: 10px 0;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        .output {
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            margin: 10px 0;
+            min-height: 30px;
+            font-size: 18px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hindi Typing Test</h1>
+    <p>Type English words and see them convert to Hindi</p>
+    
+    <label>Type here (English):</label>
+    <input type="text" id="input" placeholder="Type 'kamal' or 'Rituraj'">
+    
+    <label>Hindi Output:</label>
+    <div class="output" id="output"></div>
+    
+    <button onclick="testTransliteration()">Test Transliteration</button>
+    
+    <h3>Test Cases:</h3>
+    <ul id="testResults"></ul>
+
+    <script>
+        // Inline transliteration function
+        const consonants = {
+          'ksh': 'क्ष', 'gya': 'ज्ञ', 'tra': 'त्र', 'shr': 'श्र',
+          'kh': 'ख', 'gh': 'घ', 'ch': 'च', 'chh': 'छ', 'jh': 'झ',
+          'th': 'थ', 'thh': 'ठ', 'dh': 'ध', 'dhh': 'ढ',
+          'ph': 'फ', 'bh': 'भ', 'sh': 'श', 'shh': 'ष',
+          'ng': 'ङ', 'ny': 'ञ',
+          'k': 'क', 'g': 'ग', 'c': 'च', 'j': 'ज',
+          't': 'त', 'd': 'द', 'n': 'न', 'p': 'प',
+          'b': 'ब', 'm': 'म', 'y': 'य', 'r': 'र',
+          'l': 'ल', 'v': 'व', 'w': 'व', 's': 'स', 'h': 'ह',
+          'q': 'क़', 'x': 'क्ष', 'f': 'फ़', 'z': 'ज़'
+        };
+
+        const vowels = {
+          'aa': 'आ', 'ai': 'ऐ', 'au': 'औ', 'ee': 'ई', 'oo': 'ऊ',
+          'a': 'अ', 'e': 'ए', 'i': 'इ', 'o': 'ओ', 'u': 'उ'
+        };
+
+        const matras = {
+          'aa': 'ा', 'ai': 'ै', 'au': 'ौ', 'ee': 'ी', 'oo': 'ू',
+          'a': '', 'e': 'े', 'i': 'ि', 'o': 'ो', 'u': 'ु'
+        };
+
+        function transliterateToHindi(text) {
+          if (!text || typeof text !== 'string') return '';
+          
+          let result = '';
+          let i = 0;
+          const lowerText = text.toLowerCase();
+          
+          while (i < text.length) {
+            let matched = false;
+            
+            if (/[\s0-9\.,\-\/\(\)\[\]\{\}]/.test(text[i])) {
+              result += text[i];
+              i++;
+              continue;
+            }
+            
+            for (let len = 3; len >= 1; len--) {
+              if (i + len > text.length) continue;
+              const chunk = lowerText.substring(i, i + len);
+              
+              if (consonants[chunk]) {
+                let vowelMatched = false;
+                
+                for (let vLen = 2; vLen >= 1; vLen--) {
+                  if (i + len + vLen > text.length) continue;
+                  const vowelChunk = lowerText.substring(i + len, i + len + vLen);
+                  
+                  if (matras[vowelChunk] !== undefined) {
+                    result += consonants[chunk] + matras[vowelChunk];
+                    i += len + vLen;
+                    vowelMatched = true;
+                    matched = true;
+                    break;
+                  }
+                }
+                
+                if (!vowelMatched) {
+                  const nextChar = i + len < text.length ? lowerText[i + len] : '';
+                  if (nextChar && !/[\s0-9\.,\-\/\(\)\[\]\{\}]/.test(nextChar) && !vowels[nextChar]) {
+                    result += consonants[chunk] + '्';
+                  } else {
+                    result += consonants[chunk];
+                  }
+                  i += len;
+                  matched = true;
+                }
+                break;
+              }
+            }
+            
+            if (!matched) {
+              for (let len = 2; len >= 1; len--) {
+                if (i + len > text.length) continue;
+                const chunk = lowerText.substring(i, i + len);
+                
+                if (vowels[chunk]) {
+                  result += vowels[chunk];
+                  i += len;
+                  matched = true;
+                  break;
+                }
+              }
+            }
+            
+            if (!matched) {
+              result += text[i];
+              i++;
+            }
+          }
+          
+          return result;
+        }
+
+        // Real-time conversion
+        document.getElementById('input').addEventListener('input', function(e) {
+            const hindi = transliterateToHindi(e.target.value);
+            document.getElementById('output').textContent = hindi;
+        });
+
+        // Test function
+        function testTransliteration() {
+            const testCases = [
+                { input: 'kamal', expected: 'कमल' },
+                { input: 'Rituraj', expected: 'रितुराज' },
+                { input: 'Delhi', expected: 'देलही' },
+                { input: 'pita', expected: 'पिता' },
+                { input: 'mata', expected: 'माता' },
+                { input: 'ghar', expected: 'घर' },
+                { input: 'naam', expected: 'नाम' },
+                { input: 'ksha', expected: 'क्ष' },
+                { input: 'gyan', expected: 'ज्ञान' }
+            ];
+
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '';
+
+            testCases.forEach(test => {
+                const result = transliterateToHindi(test.input);
+                const passed = result === test.expected;
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <strong>${test.input}</strong> → 
+                    <span style="color: ${passed ? 'green' : 'red'}">
+                        ${result} ${passed ? '✓' : '✗ (expected: ' + test.expected + ')'}
+                    </span>
+                `;
+                resultsDiv.appendChild(li);
+            });
+        }
+
+        // Run tests on load
+        window.onload = testTransliteration;
+    </script>
+</body>
+</html>

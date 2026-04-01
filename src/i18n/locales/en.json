@@ -1,0 +1,646 @@
+{
+  "common": {
+    "language": "Language",
+    "select": "Select",
+    "enter": "Enter",
+    "upload": "Upload",
+    "choose": "Choose",
+    "yes": "Yes",
+    "no": "No",
+    "male": "Male",
+    "female": "Female",
+    "other": "Other",
+    "required": "Required",
+    "optional": "Optional",
+    "submit": "Submit",
+    "reset": "Reset",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "previous": "Previous",
+    "formSaved": "Form saved successfully",
+    "formError": "Error submitting form",
+    "validationError": "Please fix validation errors",
+    "fileUploaded": "File uploaded successfully",
+    "fileUploadError": "Error uploading file",
+    "draftSaved": "Draft saved successfully",
+    "previewGenerated": "Preview generated successfully"
+  },
+  "home": {
+    "welcome": "Welcome to Jyoh",
+    "description": "Explore our services and make your life easier.",
+    "userLogin": "User Login",
+    "learnMore": "Learn More",
+    "getStarted": "Get Started",
+    "whyChooseUs": "Why Choose Us?",
+    "fastReliable": "Fast & Reliable",
+    "fastReliableDesc": "Get results quickly and reliably.",
+    "secure": "Secure",
+    "secureDesc": "Your data is safe with us.",
+    "trusted": "Trusted by Thousands",
+    "trustedDesc": "Join a growing community of happy users.",
+    "ourServices": "Our Services",
+    "latestArticles": "Latest Articles",
+    "service1": "Service 1",
+    "service1Desc": "Description of service 1.",
+    "service2": "Service 2",
+    "service2Desc": "Description of service 2.",
+    "service3": "Service 3",
+    "service3Desc": "Description of service 3.",
+    "testimonials": "What Our Customers Say"
+  },
+  "navbar": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "contact": "Contact",
+    "user": "User",
+    "agent": "Agent",
+    "login": "Login",
+    "signup": "Signup",
+    "logout": "Logout",
+    "dashboard": "Dashboard",
+    "userDashboard": "User Dashboard",
+    "agentDashboard": "Agent Dashboard",
+    "adminPanel": "Admin Panel",
+    "staffDashboard": "Staff Dashboard",
+    "viewProfile": "View Profile"
+  },
+  "footer": {
+    "services": "Services",
+    "company": "Company",
+    "about": "About us",
+    "contact": "Contact",
+    "userLogin": "User Login",
+    "agentLogin": "Agent Login",
+    "legal": "Legal",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "disclaimer": "Disclaimer",
+    "support": "Support",
+    "tagline": "Providing reliable tech since 2024",
+    "copyright": "Jyoh Documentation Ltd."
+  },
+  "about": {
+    "hero": {
+      "title": "Your Legal Documents.",
+      "subtitle": "Simplified.",
+      "description": "Transform the way you handle legal paperwork with our tech-first platform. Create, download, and use legally compliant documents from anywhere — confidently and independently."
+    },
+    "whoWeAre": {
+      "title": "Who We Are?",
+      "content": "At jyoh.in, we are transforming the way India handles legal paperwork.",
+      "detail1": "Our platform enables users to create affidavits, rental agreements, declarations, and e-stamp papers online — quickly and securely.",
+      "detail2": "With a tech-first approach, we remove legal complexity, offering simplified, verified, and ready-to-use documents for individuals, businesses, and everyday needs — all at your fingertips."
+    },
+    "mission": {
+      "title": "Our Mission",
+      "content": "At jyoh.in, our mission is to bridge the gap between the average citizen and the often intimidating world of legal documentation.",
+      "detail1": "We aim to empower individuals, entrepreneurs, tenants, and businesses by making legally valid documents accessible through a fast, transparent, and technology-driven platform.",
+      "detail2": "Our mission is to democratize legal aid, giving everyone the confidence to handle important agreements with ease.",
+      "detail3": "We envision a future where legal compliance is a click away, making life simpler for millions of users."
+    },
+    "offer": {
+      "title": "What We Offer",
+      "subtitle": "A Legal Ecosystem Built for You",
+      "content": "From essential legal drafts to complex registrations, we cover it all.",
+      "feature1": "Instantly generate legally valid drafts",
+      "feature2": "Apply and receive verified e-stamp papers",
+      "feature3": "Access localized documents tailored to Indian laws",
+      "feature4": "Download, print, or share your documents instantly",
+      "feature5": "Benefit from a seamless, user-friendly interface"
+    },
+    "trust": {
+      "title": "Why People Trust Us",
+      "feature1": "Expertly verified legal templates",
+      "feature2": "Encrypted and safe data storage",
+      "feature3": "Honest pricing with zero hidden fees",
+      "feature4": "Available 24/7 for your urgent needs",
+      "feature5": "Built to follow official legal guidelines"
+    },
+    "disclaimer": {
+      "title": "Disclaimer",
+      "notice": "Important Notice",
+      "content": "The documents generated through our platform are for informational and facilitative purposes. While we strive for accuracy and legal compliance, these drafts do not constitute legal advice. Users are encouraged to verify critical documents with legal professionals before use."
+    },
+    "reachUs": {
+      "title": "Reach Us",
+      "address": "Address",
+      "connect": "Connect Call",
+      "email": "Drop Us Email"
+    },
+    "trustIndicators": {
+      "customers": "Happy Customers",
+      "rating": "Average Rating"
+    }
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "Get in touch with us for any questions or support. We're here to help you with all your legal documentation needs.",
+    "form": {
+      "title": "Send us a Message",
+      "nameLabel": "Your Name",
+      "namePlaceholder": "Enter your name",
+      "phoneLabel": "Your Phone",
+      "phonePlaceholder": "Enter your phone number",
+      "emailLabel": "Your Email",
+      "emailPlaceholder": "Enter your email",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Enter subject",
+      "messageLabel": "Your Message",
+      "messagePlaceholder": "Write your message here",
+      "submit": "Send Message",
+      "sending": "Sending message...",
+      "success": "Message sent successfully!",
+      "error": "Failed to send message.",
+      "looksGood": "Looks good!"
+    },
+    "reachUs": {
+      "title": "Reach Us"
+    },
+    "whyChooseUs": {
+      "title": "Why Choose Us?",
+      "compliant": "100% Legally Compliant Documents",
+      "fast": "Fast & Secure Processing",
+      "support": "24/7 Customer Support",
+      "pricing": "Transparent Pricing"
+    }
+  },
+  "eStamp": {
+    "pageTitle": "E-Stamp Application",
+    "sec1Title": "1. Stamp & Property Details",
+    "label_article": "Article / Type",
+    "label_property": "Property Description",
+    "label_considered": "Considered Price",
+    "label_amount": "Stamp Duty Amount",
+    "sec2Title": "2. First Party Details (Payer/Seller)",
+    "label_f_name": "Full Name",
+    "label_f_gender": "Gender",
+    "label_f_mobile": "Mobile Number",
+    "label_f_email": "Email Address",
+    "label_f_pan": "PAN Number",
+    "label_f_aad": "Aadhaar Number",
+    "label_f_addr": "Full Address",
+    "sec3Title": "3. Second Party Details (Buyer)",
+    "label_s_name": "Full Name",
+    "label_s_gender": "Gender",
+    "label_s_mobile": "Mobile Number",
+    "label_s_email": "Email Address",
+    "label_s_pan": "PAN Number",
+    "label_s_aad": "Aadhaar Number",
+    "label_s_addr": "Full Address",
+    "sec4Title": "4. Payer & Purchased Details",
+    "label_paid_by": "Stamp Duty Paid By",
+    "label_purchased_by": "Stamp Purchased By",
+    "label_decl": "I hereby declare that all information provided is true and correct.",
+    "both": "Both Parties",
+    "purchasedDefault": "Jyoh Documentation Ltd.",
+    "others": "Others",
+    "previewTitle": "Application Preview",
+    "articles": {
+      "affidavit": "Affidavit",
+      "lease": "Lease Agreement",
+      "conveyance": "Conveyance Deed",
+      "sale": "Sale Deed",
+      "agreement": "Agreement",
+      "poa": "Power of Attorney",
+      "cancellation": "Cancellation",
+      "mortgage": "Mortgage Deed",
+      "bond": "Bond",
+      "courtBond": "Court Bond",
+      "other": "Other"
+    }
+  },
+  "saleDeed": {
+    "header": {
+      "title": "Sale Deed Form Generator",
+      "description": "Complete property sale deed with calculations, file uploads, and preview generation."
+    },
+    "buttons": {
+      "saveDraft": "Save Draft",
+      "preview": "Preview",
+      "submit": "Submit",
+      "next": "Next",
+      "back": "Back",
+      "addSeller": "Add More Sellers",
+      "addBuyer": "Add More Buyers",
+      "addWitness": "Add More Witnesses",
+      "remove": "Remove",
+      "previewIcon": "🔍 Preview",
+      "saveIcon": "💾 Save Draft",
+      "submitIcon": "✅ Submit",
+      "clearAll": "Clear All",
+      "importData": "Import Data",
+      "stepsCompleted": "All Steps Completed",
+      "reviewSubmit": "Review & Submit above"
+    },
+    "stepper": {
+      "property": "Property",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "witness": "Witness",
+      "desc": "Desc",
+      "propertyInfo": "Property Info",
+      "sellerDetails": "Seller Details",
+      "buyerDetails": "Buyer Details",
+      "witnessDetails": "Witness Details",
+      "propertyDesc": "Property Description"
+    },
+    "step1": {
+      "title": "Property Information",
+      "docType": "Document Type",
+      "propertyType": "Property Type",
+      "plotType": "Plot Type",
+      "salePrice": "Sale Consideration Price (INR)",
+      "circleRate": "Circle Rate Amount (per unit area) (INR)",
+      "areaInputType": "Property Area Input Type",
+      "totalArea": "Total Area",
+      "dimensions": "Length & Width",
+      "area": "Property Area",
+      "areaPlaceholder": "Enter Property Area",
+      "areaUnit": "Area Unit",
+      "length": "Length",
+      "width": "Width",
+      "unit": "Unit"
+    },
+    "seller": {
+      "title": "Seller Details",
+      "info": "Seller Information",
+      "name": "Name",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile No.",
+      "address": "Address",
+      "idType": "ID Card Type",
+      "idNo": "ID Card No.",
+      "panCardNo": "PAN Card Number",
+      "docs": "Documents & Uploads",
+      "pan": "PAN Card",
+      "photo": "Photo",
+      "idDoc": "ID Document",
+      "signature": "Signature"
+    },
+    "buyer": {
+      "title": "Buyer Details",
+      "info": "Buyer Information",
+      "name": "Name",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile No.",
+      "address": "Address",
+      "idType": "ID Card Type",
+      "idNo": "ID Card No.",
+      "panCardNo": "PAN Card Number",
+      "docs": "Documents & Uploads",
+      "pan": "PAN Card",
+      "photo": "Photo",
+      "idDoc": "ID Document",
+      "signature": "Signature",
+      "firstParty": "First Party (Seller):",
+      "secondParty": "Second Party (Buyer):",
+      "hereinafterFirst": "(Hereinafter Called The First Party)",
+      "hereinafterSecond": "(Hereinafter Called The Second Party)",
+      "partyDetails": "Party Details"
+    },
+    "witness": {
+      "title": "Witness Details",
+      "info": "Witness Information",
+      "name": "Name",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile No.",
+      "address": "Address",
+      "age": "Age",
+      "panCardNo": "PAN Card Number",
+      "docs": "Documents & Uploads",
+      "pan": "PAN Card",
+      "photo": "Photo",
+      "idDoc": "ID Document",
+      "signature": "Signature"
+    },
+    "desc": {
+      "title": "Property Description",
+      "state": "State",
+      "district": "District",
+      "tehsil": "Tehsil",
+      "village": "Village",
+      "khasra": "Khasra/Survey No.",
+      "plot": "Plot No.",
+      "colony": "Colony Name",
+      "ward": "Ward No.",
+      "street": "Street No.",
+      "roadSize": "Road Size",
+      "roadUnit": "Road Unit",
+      "roadUnits": {
+        "meter": "Meter",
+        "foot": "Foot"
+      },
+      "doubleSideRoad": "Double Side Road (+10% on Circle Rate)",
+      "directions": "Property Directions (North, East, South, West)",
+      "north": "North",
+      "east": "East",
+      "south": "South",
+      "west": "West",
+      "photos": "Property Photos",
+      "photosDesc": "Upload photos of the property. You can upload multiple photos.",
+      "deductions": {
+        "title": "Deductions",
+        "subtitle": "Select only ONE option for stamp duty deduction.",
+        "genderTitle": "Buyer's Gender",
+        "female": "Female (-1% Stamp Duty)",
+        "male": "Male",
+        "transgender": "Transgender",
+        "othersTitle": "Other Deductions",
+        "exServiceman": "Ex-Serviceman (₹100 Stamp Duty)",
+        "handicapped": "Handicapped (25% on first ₹5 Lakh of Circle Value)",
+        "otherPercent": "Other Deduction (%)"
+      },
+      "calculation": {
+        "title": "Calculation Summary",
+        "salePrice": "Sale Consideration Price:",
+        "plotArea": "Plot Area:",
+        "hectare": "Hectare",
+        "sqMeters": "Sq.Meters",
+        "totalBuildup": "Total Built-up/Additions Area:",
+        "warningBuildup": "Warning: Built-up area exceeds plot area!",
+        "circleValueBefore": "Circle Rate Value (Before additions):",
+        "circleValueAfter": "Circle Rate Value (After additions):",
+        "deduction": "Deduction:",
+        "stampDuty": "Stamp Duty (7% of Final Value):",
+        "registration": "Registration Charge (1% of Final Value):",
+        "totalPayable": "Total Stamp Duty & Registration Charges:"
+      },
+      "alerts": {
+        "docTypeRequired": "Document Type is required",
+        "propertyTypeRequired": "Property Type is required",
+        "plotTypeRequired": "Plot Type is required",
+        "salePriceRequired": "Sale Price is required",
+        "circleRateRequired": "Circle Rate is required",
+        "areaRequired": "Area is required",
+        "sellerNameRequired": "All sellers must have a name",
+        "buyerNameRequired": "All buyers must have a name",
+        "witnessNameRequired": "All witnesses must have a name",
+        "stateRequired": "State is required",
+        "districtRequired": "District is required",
+        "tehsilRequired": "Tehsil is required",
+        "villageRequired": "Village is required",
+        "requiredFields": "Please fill in all required fields (Document Type, Property Type, Sale Price, Circle Rate Amount).",
+        "invalidArea": "Please provide a valid property area."
+      }
+    },
+    "options": {
+      "select": "Select",
+      "deeds": {
+        "title": "Select Deed Type",
+        "sale": "Sale Deed",
+        "gift": "Gift Deed",
+        "partition": "Partition Deed",
+        "exchange": "Exchange Deed",
+        "others": "Others"
+      },
+      "property": {
+        "title": "Select Type",
+        "residential": "Residential",
+        "agriculture": "Agriculture",
+        "commercial": "Commercial",
+        "industrial": "Industrial"
+      },
+      "plot": {
+        "title": "Select Plot Type",
+        "vacant": "Vacant Plot/Land",
+        "buildup": "Buildup",
+        "flat": "Flat/Floor",
+        "multistory": "Multistory"
+      },
+      "units": {
+        "sq_meters": "Sq. Meters",
+        "sq_yards": "Sq. Yards",
+        "sq_feet": "Sq. Feet",
+        "acre": "Acre",
+        "hectare": "Hectare",
+        "bigha": "Bigha",
+        "kanal": "Kanal",
+        "marla": "Marla"
+      },
+      "idTypes": {
+        "aadhaar": "Aadhaar Card",
+        "passport": "Passport",
+        "voterId": "Voter ID"
+      }
+    }
+  },
+  "trustDeed": {
+    "title": "Trust Deed Form",
+    "trustDetails": "Trust Details",
+    "trustName": "Trust Name",
+    "trustAddress": "Trust Address",
+    "startingAmount": {
+      "title": "Trust's Starting Amount",
+      "digits": "Amount (in figures)",
+      "words": "Amount (in words)"
+    },
+    "trustee": {
+      "title": "Trustee/Member Details",
+      "label": "Trustee/Member",
+      "salutation": "Salutation",
+      "position": "Position",
+      "name": "Name",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile Number",
+      "idType": "ID Card Type",
+      "idNo": "ID Card No.",
+      "idUpload": "ID Card Upload",
+      "photoUpload": "Photo Upload",
+      "address": "Address",
+      "addButton": "+ Add Trustee/Member",
+      "remove": "Remove"
+    },
+    "functionalArea": {
+      "title": "Trust's Functional Area",
+      "placeholder": "Functional Area",
+      "addButton": "+ Add More Area"
+    },
+    "purposes": {
+      "title": "Trust Purposes",
+      "otherTitle": "Other Purposes",
+      "placeholder": "Purpose",
+      "addButton": "+ Add More Purpose",
+      "options": [
+        "Schooling for orphan children",
+        "Assisting people with health issues",
+        "Assisting in marriage of poor girls",
+        "Teaching sewing and other skills",
+        "Building hospitals and old age homes",
+        "Promoting plantation and environmental protection"
+      ]
+    },
+    "terms": {
+      "title": "Important Rules and Conditions",
+      "otherTitle": "Other Important Points",
+      "placeholder": "Point",
+      "addButton": "+ Add More Point",
+      "options": [
+        "The trust will function solely for charitable purposes.",
+        "No salary or honorarium will be given to the trustee.",
+        "Attendance of at least three trustees is mandatory for trust meetings.",
+        "Annual accounts will be audited.",
+        "Appointment of a new trustee will be by majority of existing trustees.",
+        "Upon dissolution of the trust, its assets will be donated to another charitable institution.",
+        "The trust will be operated in accordance with the laws of India."
+      ]
+    },
+    "witness": {
+      "title": "Witness Details",
+      "label": "Witness"
+    },
+    "buttons": {
+      "submit": "Submit",
+      "submitting": "Submitting..."
+    },
+    "placeholders": {
+      "trustName": "Enter trust name",
+      "trustAddress": "Enter full trust address",
+      "amountDigits": "Enter amount"
+    },
+    "alerts": {
+      "success": "Trust Deed created successfully!",
+      "error": "Something went wrong. Please try again.",
+      "networkError": "Network error. Please try again.",
+      "validationError": "Please fix the following errors before proceeding:",
+      "trusteeRequired": "At least one trustee must have name, address, and mobile number filled",
+      "witnessRequired": "At least one witness must have name, address, and mobile number filled"
+    }
+  },
+  "adoptionDeed": {
+    "title": "Adoption Deed",
+    "registrationDetails": "Registration Details",
+    "country": "Country",
+    "state": "State",
+    "district": "District",
+    "tehsil": "Tehsil",
+    "registrarOffice": "Sub-Registrar Office",
+    "childDetails": {
+      "title": "Details of the Child to be Adopted",
+      "photoUpload": "Upload Photo",
+      "photoPreview": "Photo Preview",
+      "capturePhoto": "Capture Child Photo",
+      "name": "Child's Name",
+      "dob": "Date of Birth",
+      "ageName": "Age",
+      "ageValue": "{{years}} years {{months}} months",
+      "gender": "Gender",
+      "bloodGroup": "Blood Group",
+      "education": "Education Details",
+      "educationPlaceholder": "e.g., Class 5, Saraswati Vidya Mandir",
+      "currentAddress": "Current Address",
+      "currentAddressPlaceholder": "Full Address",
+      "birthCertNo": "Birth Certificate Number",
+      "issueDate": "Issue Date",
+      "issuePlace": "Issue Place",
+      "issuePlacePlaceholder": "e.g., Municipal Corporation Office, Lucknow",
+      "birthCertUpload": "Upload Birth Certificate",
+      "idUpload": "Upload ID Card",
+      "isOrphanage": "Adoption from Orphanage",
+      "orphanageName": "Orphanage Name",
+      "orphanageAddress": "Orphanage Address"
+    },
+    "parties": {
+      "title": "Party Details (First Party and Second Party)",
+      "firstParty": "First Party (Adopter)",
+      "secondParty": "Second Party (Natural Parents)",
+      "photoUpload": "Upload Photo",
+      "photoPreview": "Photo Preview",
+      "capturePhoto": "Capture Party Photo",
+      "gender": "Gender",
+      "prefix": "Prefix",
+      "name": "Name",
+      "dob": "Date of Birth",
+      "maritalStatus": "Marital Status",
+      "spouseConsent": "Spouse consent obtained",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile Number",
+      "occupation": "Occupation",
+      "idType": "ID Card Type",
+      "idNo": "ID Card Number",
+      "address": "Current Address",
+      "addFirst": "Add First Party (Adopter)",
+      "addSecond": "Add Second Party (Natural Parents)",
+      "remove": "Remove",
+      "prefixSelect": "-- Select --"
+    },
+    "witness": {
+      "title": "Witness Details",
+      "label": "Witness",
+      "photoUpload": "Upload Photo",
+      "photoPreview": "Photo Preview",
+      "gender": "Gender",
+      "prefix": "Prefix",
+      "name": "Name",
+      "relation": "Son of / Husband of",
+      "mobile": "Mobile Number",
+      "occupation": "Occupation",
+      "idType": "ID Card Type",
+      "idNo": "ID Card Number",
+      "address": "Current Address",
+      "addButton": "Add Witness",
+      "remove": "Remove"
+    },
+    "rules": {
+      "title": "Rules and Conditions of Adoption",
+      "list": [
+        "This adoption is being made under the provisions of the Hindu Adoptions and Maintenance Act, 1956.",
+        "The adopter is of sound mind, not a minor, and is competent.",
+        "The natural parents are making this decision voluntarily and without any pressure or financial gain.",
+        "All conditions related to the child's age, gender, and legal relationships are met.",
+        "This adoption is being carried out in accordance with the CARA (Central Adoption Resource Authority) regulations.",
+        "All legal documents of the orphanage, including the registration certificate, are correct and valid.",
+        "The adoption process has been completed under the supervision of the Child Welfare Committee."
+      ]
+    },
+    "stampGifts": {
+      "title": "Stamp Duty and Gift Details",
+      "stampAmount": "Stamp Duty Amount",
+      "stampNo": "Stamp Number",
+      "stampDate": "Stamp Date",
+      "giftsTitle": "Gifts Given",
+      "giftsNote": "Note: These gifts are legally considered symbolic only and there is no financial transaction.",
+      "giftDescription": "Gift Description",
+      "addGift": "Add Gift",
+      "remove": "Remove"
+    },
+    "buttons": {
+      "submit": "Submit Adoption Deed",
+      "submitting": "Submitting...",
+      "loading": "Loading..."
+    },
+    "options": {
+      "select": "-- Select --",
+      "genders": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other"
+      },
+      "marital": {
+        "single": "Single",
+        "married": "Married",
+        "divorced": "Divorced",
+        "widowed": "Widowed"
+      },
+      "occupations": {
+        "govt": "Govt Employee",
+        "private": "Private Sector",
+        "business": "Business",
+        "other": "Other"
+      }
+    },
+    "validation": {
+      "required": "This field is required",
+      "nameMin": "Name must be at least 2 characters",
+      "futureDate": "Date cannot be in the future",
+      "addrMin": "Address must be at least 10 characters",
+      "validAmount": "Please enter a valid amount",
+      "firstPartyReq": "At least one adopting party (First Party) is required",
+      "secondPartyReq": "At least one natural parent (Second Party) is required",
+      "witnessReq": "At least one witness is required",
+      "spouseConsentReq": "Spouse consent is required for married persons",
+      "fixErrors": "Please fix all validation errors before submitting"
+    }
+  }
+}
