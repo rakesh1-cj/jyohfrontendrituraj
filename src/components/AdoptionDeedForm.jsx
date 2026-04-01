@@ -1409,7 +1409,7 @@ const AdoptionDeedFormContent = () => {
             </div>
 
             {/* Rules and Conditions Section */}
-            <div className="bg-gray-50 p-2 sm:p-3 md:p-4 rounded-lg border border-gray-200">
+            {/* <div className="bg-gray-50 p-2 sm:p-3 md:p-4 rounded-lg border border-gray-200">
               <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700 mb-2 sm:mb-3 border-b-2 border-blue-500 pb-1.5">
                 {t('adoptionDeed.rulesAndConditions.title')}
               </h2>
@@ -1428,7 +1428,41 @@ const AdoptionDeedFormContent = () => {
                   </li>
                 ))}
               </ul>
-            </div>
+            </div> */}
+
+            {/* Rules and Conditions Section */}
+<div className="bg-gray-50 p-2 sm:p-3 md:p-4 rounded-lg border border-gray-200">
+  <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700 mb-2 sm:mb-3 border-b-2 border-blue-500 pb-1.5">
+    {t('adoptionDeed.rulesAndConditions.title')}
+  </h2>
+
+  {(() => {
+    const rules = t('adoptionDeed.rulesAndConditions.options', { returnObjects: true });
+    const orphanRules = t('adoptionDeed.rulesAndConditions.orphanageOptions', { returnObjects: true });
+
+    const safeRules = Array.isArray(rules) ? rules : [];
+    const safeOrphanRules = Array.isArray(orphanRules) ? orphanRules : [];
+
+    return (
+      <ul className="space-y-3 text-gray-700">
+        {safeRules.map((option, index) => (
+          <li key={index} className="flex items-start">
+            <span className="text-blue-600 mr-2">•</span>
+            <span>{option}</span>
+          </li>
+        ))}
+
+        {formData.isOrphanageAdoption &&
+          safeOrphanRules.map((option, index) => (
+            <li key={index} className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              <span>{option}</span>
+            </li>
+          ))}
+      </ul>
+    );
+  })()}
+</div>
 
             {/* Stamp and Gifts Section */}
             <div className="bg-gray-50 p-2 sm:p-3 md:p-4 rounded-lg border border-gray-200">
