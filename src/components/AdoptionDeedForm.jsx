@@ -1538,7 +1538,30 @@ const AdoptionDeedFormContent = () => {
   );
 };
 
+// const AdoptionDeedForm = () => {
+//   return (
+//     <FormWorkflowProvider formType="adoption-deed">
+//       <FormWorkflow
+//         formTitle={t('adoptionDeed.title')}
+//         formType="adoption-deed"
+//         fields={[
+//           { name: 'childName', label: t('adoptionDeed.childDetails.name') },
+//           { name: 'childDOB', label: t('adoptionDeed.childDetails.dob') },
+//           { name: 'childGender', label: t('adoptionDeed.childDetails.gender') },
+//           { name: 'country', label: t('adoptionDeed.country') },
+//           { name: 'state', label: t('adoptionDeed.state') },
+//           { name: 'district', label: t('adoptionDeed.district') },
+//         ]}
+//       >
+//         <AdoptionDeedFormContent />
+//       </FormWorkflow>
+//     </FormWorkflowProvider>
+//   );
+// };
+
 const AdoptionDeedForm = () => {
+  const { t } = useTranslation(); // ✅ ADD THIS
+
   return (
     <FormWorkflowProvider formType="adoption-deed">
       <FormWorkflow
