@@ -658,6 +658,7 @@ const TrustDeedFormContent = () => {
   const [submitStatus, setSubmitStatus] = useState(null);
   const { goToPreview, formData: workflowFormData } = useFormWorkflow();
   const { t, i18n } = useTranslation();
+  const safeArray = (value) => Array.isArray(value) ? value : [];
   const isHindi = i18n.language === 'hi';
 
   // Validation schema moved inside to use t()
@@ -1384,7 +1385,7 @@ const TrustDeedFormContent = () => {
                     {t('trustDeed.purposes.title')}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
-                    {t('trustDeed.purposes.options', { returnObjects: true }).map((purpose, index) => (
+{safeArray(t('trustDeed.purposes.options', { returnObjects: true })).map((purpose, index) => (
                       <label
                         key={index}
                         className="flex items-center p-2 bg-white rounded border text-xs"
@@ -1441,7 +1442,7 @@ const TrustDeedFormContent = () => {
                     {t('trustDeed.terms.title')}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
-                    {t('trustDeed.terms.options', { returnObjects: true }).map((term, index) => (
+{safeArray(t('trustDeed.terms.options', { returnObjects: true })).map((term, index) => (
                       <label
                         key={index}
                         className="flex items-center p-2 bg-white rounded border text-xs"
