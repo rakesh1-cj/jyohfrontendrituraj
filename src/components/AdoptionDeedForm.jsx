@@ -12,6 +12,7 @@ import ProcessingState from './FormWorkflow/ProcessingState';
 import PaymentGateway from './FormWorkflow/PaymentGateway';
 
 const AdoptionDeedFormContent = () => {
+  const safeArray = (value) => Array.isArray(value) ? value : [];
   const { t } = useTranslation();
   const { goToPreview } = useFormWorkflow();
 
@@ -55,7 +56,7 @@ const AdoptionDeedFormContent = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Location data
-  const states = t('common.locations.states', { returnObjects: true }) || ['Uttar Pradesh', 'Delhi', 'Maharashtra'];
+const states = safeArray(t('common.locations.states', { returnObjects: true }));
   const districts = t('common.locations.districts', { returnObjects: true }) || {};
   const tehsils = t('common.locations.tehsils', { returnObjects: true }) || {};
   const offices = t('common.locations.offices', { returnObjects: true }) || {};
@@ -433,7 +434,7 @@ const AdoptionDeedFormContent = () => {
                     disabled={!formData.state}
                   >
                     <option value="">{t('adoptionDeed.options.select')}</option>
-                    {formData.state && districts[formData.state]?.map(district => (
+{safeArray(districts?.[formData.state]).map(district => (
                       <option key={district} value={district}>{district}</option>
                     ))}
                   </select>
@@ -453,7 +454,7 @@ const AdoptionDeedFormContent = () => {
                     disabled={!formData.district}
                   >
                     <option value="">{t('adoptionDeed.options.select')}</option>
-                    {formData.district && tehsils[formData.district]?.map(tehsil => (
+{safeArray(tehsils?.[formData.district]).map(tehsil => (
                       <option key={tehsil} value={tehsil}>{tehsil}</option>
                     ))}
                   </select>
@@ -473,7 +474,7 @@ const AdoptionDeedFormContent = () => {
                     disabled={!formData.tehsil}
                   >
                     <option value="">{t('adoptionDeed.options.select')}</option>
-                    {formData.tehsil && offices[formData.tehsil]?.map(office => (
+{safeArray(offices?.[formData.tehsil]).map(office => (
                       <option key={office} value={office}>{office}</option>
                     ))}
                   </select>

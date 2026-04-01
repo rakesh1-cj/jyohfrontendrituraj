@@ -1,5 +1,5 @@
 import PropertyRegistrationForm from '@/components/PropertyRegistrationForm';
-import { Metadata } from 'next';
+
 
 export const metadata = {
   title: 'Property Registration Form - संपत्ति पंजीकरण फॉर्म',
