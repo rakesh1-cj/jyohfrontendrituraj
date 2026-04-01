@@ -28,10 +28,26 @@ export const metadata = {
 // }
 
 
+import "./globals.css";
+import StoreProvider from "./StoreProvider";
+import I18nProvider from "./I18nProvider";
+import { ToastProvider } from "@/contexts/ToastContext";
+import ClientAuthProvider from "@/components/ClientAuthProvider";
+
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-gray-100" suppressHydrationWarning>
+        <ClientAuthProvider>
+          <StoreProvider>
+            <I18nProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </I18nProvider>
+          </StoreProvider>
+        </ClientAuthProvider>
+      </body>
     </html>
   );
 }
