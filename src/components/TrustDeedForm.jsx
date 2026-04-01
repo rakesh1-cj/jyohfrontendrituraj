@@ -4,11 +4,7 @@ import { Formik, Form, Field, FieldArray, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { FormWorkflowProvider, useFormWorkflow } from './FormWorkflow/FormWorkflowProvider';
 import FormWorkflow from './FormWorkflow/FormWorkflow';
-import FormPreview from './FormWorkflow/FormPreview';
-import ProcessingState from './FormWorkflow/ProcessingState';
-import PaymentGateway from './FormWorkflow/PaymentGateway';
-import LanguageSelectorDropdown from './LanguageSelectorDropdown';
-import ClientOnly from './ClientOnly';
+
 import { useTranslation } from 'react-i18next';
 
 // // Validation schema
@@ -1650,16 +1646,18 @@ const TrustDeedFormContent = () => {
 };
 
 const TrustDeedForm = () => {
+  const { t } = useTranslation(); // ✅ FIX: add this
+
   return (
     <FormWorkflowProvider formType="trust-deed">
       <FormWorkflow
-        formTitle="Trust Deed"
+        formTitle={t('trustDeed.title')} // optional improvement
         formType="trust-deed"
         fields={[
           { name: 'trustName', label: t('trustDeed.trustName') },
           { name: 'trustAddress', label: t('trustDeed.trustAddress') },
-          { name: 'startingAmount_number', label: `${t('trustDeed.startingAmount.digits')}` },
-          { name: 'startingAmount_words', label: `${t('trustDeed.startingAmount.words')}` },
+          { name: 'startingAmount_number', label: t('trustDeed.startingAmount.digits') },
+          { name: 'startingAmount_words', label: t('trustDeed.startingAmount.words') },
         ]}
       >
         <TrustDeedFormContent />

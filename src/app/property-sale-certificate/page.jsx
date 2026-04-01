@@ -1,5 +1,5 @@
 import PropertySaleCertificateForm from '@/components/PropertySaleCertificateForm';
-import { Metadata } from 'next';
+
 
 export const metadata = {
   title: 'Property Sale Certificate Generator',
