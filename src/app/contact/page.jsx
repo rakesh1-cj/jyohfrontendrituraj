@@ -9,8 +9,6 @@ import { contactUsSchema } from "@/validations/schemas";
 import FormInput from '@/components/ui/FormInput';
 import SubmitButton from '@/components/ui/SubmitButton';
 import { useTranslation } from "react-i18next";
-import Navbar from "@/components/Navbar";
-import FooterPage from "@/components/Footer";
 
 const initialValues = {
   name: "",
@@ -95,7 +93,6 @@ const ContactUs = () => {
 
   return (
     <>
-      <Navbar />
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -293,7 +290,6 @@ const ContactUs = () => {
           </div>
         </div>
       </div>
-      <FooterPage />
     </>
   );
 };

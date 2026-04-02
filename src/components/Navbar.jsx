@@ -60,7 +60,7 @@ const Navbar = () => {
         <input id="navbar-drawer" type="checkbox" className="drawer-toggle" />
         <div className="drawer-content">
           {/* Enhanced Professional Navbar */}
-          <nav className="glass-effect-dark shadow-2xl border-b border-green-500/20 backdrop-blur-sm relative overflow-hidden navbar-container" style={{ background: 'linear-gradient(135deg, #0F2A44 0%, #1E3A5F 50%, #2D4A6B 100%)' }}>
+          <nav className="glass-effect-dark shadow-2xl border-b border-green-500/20 backdrop-blur-sm relative navbar-container" style={{ background: 'linear-gradient(135deg, #0F2A44 0%, #1E3A5F 50%, #2D4A6B 100%)' }}>
             {/* Animated Background Elements */}
             <div className="absolute inset-0 opacity-5">
               <div className="absolute top-0 left-0 w-32 h-32 bg-green-400 rounded-full -translate-x-1/2 -translate-y-1/2 float-animation"></div>
@@ -120,7 +120,7 @@ const Navbar = () => {
 
                 {/* Services Dropdown - JavaScript Controlled */}
                 <div 
-                  className="relative"
+                  className="relative group"
                   onMouseEnter={() => setIsServicesOpen(true)}
                   onMouseLeave={() => setIsServicesOpen(false)}
                 >
@@ -139,10 +139,12 @@ const Navbar = () => {
                   <div 
                     className={`absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-slate-800 border border-green-500/20 rounded-2xl shadow-2xl transition-all duration-300 ${
                       isServicesOpen 
-                        ? 'opacity-100 visible pointer-events-auto' 
-                        : 'opacity-0 invisible pointer-events-none'
+                        ? 'opacity-100 visible pointer-events-auto scale-100' 
+                        : 'opacity-0 invisible pointer-events-none scale-95'
                     }`}
-                    style={{ zIndex: 9999 }}
+                    style={{ zIndex: 99999 }}
+                    onMouseEnter={() => setIsServicesOpen(true)}
+                    onMouseLeave={() => setIsServicesOpen(false)}
                   >
                     <div className="p-4 space-y-2">
                       {AVAILABLE_FORMS.map((form, index) => (

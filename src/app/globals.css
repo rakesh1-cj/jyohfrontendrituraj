@@ -463,6 +463,25 @@ html {
   z-index: 9999 !important;
 }
 
+/* Services Dropdown Specific Styles */
+.services-dropdown {
+  transform-origin: top center;
+}
+
+.services-dropdown.show {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateX(-50%) scale(1) !important;
+}
+
+.services-dropdown.hide {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) scale(0.95) !important;
+}
+
 /* Ensure navbar stays on top but dropdown is higher */
 .navbar-container {
   z-index: 1000;
@@ -530,4 +549,4 @@ html {
   .btn-primary:hover {
     transform: translateY(-3px) scale(1.02);
   }
-}
+}T
